@@ -1,0 +1,8 @@
+[BASIC]
+good-names=c,p
+
+[MESSAGE CONTROL]
+disable=
+    missing-function-docstring,
+    missing-class-docstring,
+    missing-module-docstring,
