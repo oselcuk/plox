@@ -1,13 +1,15 @@
-from expr import Binary, Expr, Grouping, Literal, Unary, Visitor
+from typing import Sequence
+from lox.expr import Binary, Expr, Grouping, Literal, Unary, ExprVisitor
+from lox.stmt import Expression, Print, Stmt, StmtVisitor
 
 
-class AstPrinter(Visitor[str]):
-    def print(self, expr: Expr) -> str:
-        return expr.accept(self)
+class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
+    def print(self, ast: Sequence[Expr | Stmt]) -> str:
+        return "\n".join(node.accept(self) for node in ast)
 
     def parenthesize(self, name: str, *exprs: Expr) -> str:
         args_list = " ".join(expr.accept(self) for expr in exprs)
-        return f"({name} {args_list})"
+        return f"( {name} {args_list} )"
 
     def visit_binary(self, expr: Binary) -> str:
         return self.parenthesize(expr.operator.lexeme, expr.left, expr.right)
@@ -22,3 +24,9 @@ class AstPrinter(Visitor[str]):
 
     def visit_unary(self, expr: Unary) -> str:
         return self.parenthesize(expr.operator.lexeme, expr.right)
+
+    def visit_expression(self, expr: Expression) -> str:
+        return f"({expr.expr.accept(self)} ; )"
+
+    def visit_print(self, expr: Print) -> str:
+        return self.parenthesize("print", expr.expr)

@@ -1,13 +1,14 @@
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Protocol, TypeVar
-from scanner import Token
+
+from lox.scanner import Token
+from lox.value import LoxValue
 
 
 T_co = TypeVar("T_co", covariant=True)
 
 
-class Visitor(Protocol[T_co]):
+class ExprVisitor(Protocol[T_co]):
     def visit_binary(self, expr: "Binary") -> T_co:
         ...
 
@@ -21,13 +22,13 @@ class Visitor(Protocol[T_co]):
         ...
 
 
-LoxType = None | bool | float | str
-
-
-class Expr(ABC):
-    @abstractmethod
-    def accept(self, visitor: Visitor[T_co]) -> T_co:
-        raise NotImplementedError
+@dataclass(frozen=True)
+class Expr:
+    def accept(self, visitor: ExprVisitor[T_co]) -> T_co:
+        visit_method = f"visit_{self.__class__.__name__.lower()}"
+        if (visit := getattr(visitor, visit_method, False)) and callable(visit):
+            return visit(self)
+        raise NotImplementedError(f"{visit_method} not implemented on {visitor}")
 
 
 @dataclass(frozen=True)
@@ -36,30 +37,18 @@ class Binary(Expr):
     operator: Token
     right: Expr
 
-    def accept(self, visitor: Visitor[T_co]) -> T_co:
-        return visitor.visit_binary(self)
-
 
 @dataclass(frozen=True)
 class Grouping(Expr):
     expr: Expr
 
-    def accept(self, visitor: Visitor[T_co]) -> T_co:
-        return visitor.visit_grouping(self)
-
 
 @dataclass(frozen=True)
 class Literal(Expr):
-    value: LoxType
-
-    def accept(self, visitor: Visitor[T_co]) -> T_co:
-        return visitor.visit_literal(self)
+    value: LoxValue
 
 
 @dataclass(frozen=True)
 class Unary(Expr):
     operator: Token
     right: Expr
-
-    def accept(self, visitor: Visitor[T_co]) -> T_co:
-        return visitor.visit_unary(self)

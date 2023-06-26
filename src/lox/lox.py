@@ -1,13 +1,11 @@
 import sys
 
-from ast_printer import AstPrinter
-from exceptions import LoxError
-from interpreter import Interpreter
-
-# pylint: disable=deprecated-module
-from parser import Parser
-
-from scanner import Scanner
+from lox.ast_printer import AstPrinter
+from lox.exceptions import LoxError
+from lox.interpreter import Interpreter
+from lox.parser import Parser
+from lox.scanner import Scanner
+from lox.stmt import Stmt
 
 
 def main():
@@ -47,26 +45,23 @@ def run(source: str):
     # FUTURE: Should this raise instead? Does it make sense to continue
     # to parsing if scanning failed?
     if errors:
-        print("Errors encountered during scanning:")
+        print("Errors encountered during scanning:", file=sys.stderr)
         for error in errors:
             print(error)
 
-    print("Parsed tokens:")
+    print("Parsed tokens:", file=sys.stderr)
     for token in tokens:
-        print(token)
-    print()
+        print(token, file=sys.stderr)
+    print(file=sys.stderr)
 
     parser = Parser(tokens)
-    expr = parser.parse()
+    expr: list[Stmt] = parser.parse()
 
-    print("Parsed expression:")
-    print(AstPrinter().print(expr))
-    print()
+    print("Parsed expression:", file=sys.stderr)
+    print(AstPrinter().print(expr), file=sys.stderr)
+    print(file=sys.stderr)
 
-    res = Interpreter().interpret(expr)
-    print("Expression evaluates to:")
-    print(res)
-    print()
+    Interpreter().interpret(expr)
 
 
 if __name__ == "__main__":

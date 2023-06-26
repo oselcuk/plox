@@ -1,8 +1,10 @@
 from typing import Callable, Optional
-from exceptions import LoxError
-from expr import Binary, Expr, Grouping, Literal, Unary
-from scanner import Token
-from scanner import TokenType as TT
+
+from lox.exceptions import LoxError
+from lox.expr import Binary, Expr, Grouping, Literal, Unary
+from lox.scanner import Token
+from lox.scanner import TokenType as TT
+from lox.stmt import Expression, Print, Stmt
 
 ErrorReporterType = Callable[[int, str, str], None]
 
@@ -20,30 +22,39 @@ class Parser:
     def __init__(self, tokens: list[Token]) -> None:
         self.tokens = tokens
 
-    def parse(self) -> Expr:
-        return self.expression()
+    def parse(self) -> list[Stmt]:
+        statements: list[Stmt] = []
+        while not self.is_at_end():
+            statements.append(self.statement())
+        return statements
+
+    def statement(self) -> Stmt:
+        if self.match(TT.PRINT):
+            return self.print_statement()
+        return self.expression_statement()
+
+    def print_statement(self) -> Stmt:
+        expr = self.expression()
+        self.consume(TT.SEMICOLON, "Expect semicolon after value.")
+        return Print(expr)
+
+    def expression_statement(self) -> Stmt:
+        expr = self.expression()
+        self.consume(TT.SEMICOLON, "Expect semicolon after statement.")
+        return Expression(expr)
 
     def expression(self) -> Expr:
         return self.equality()
 
-    # Maybe change to some sort of decorator?
     def equality(self) -> Expr:
         return self.parse_binary_operation(
             self.comparison, TT.BANG_EQUAL, TT.EQUAL_EQUAL
         )
-        # expr: Expr = self.comparison()
-        # while tok := self.match(TT.BANG_EQUAL, TT.EQUAL_EQUAL):
-        #     expr = Binary(expr, tok, self.comparison())
-        # return expr
 
     def comparison(self) -> Expr:
         return self.parse_binary_operation(
             self.term, TT.GREATER, TT.GREATER_EQUAL, TT.LESS, TT.LESS_EQUAL
         )
-        # expr = self.term()
-        # while tok := self.match(TT.GREATER, TT.GREATER_EQUAL, TT.LESS, TT.LESS_EQUAL):
-        #     expr = Binary(expr, tok, self.term())
-        # return expr
 
     def term(self) -> Expr:
         return self.parse_binary_operation(self.factor, TT.PLUS, TT.MINUS)

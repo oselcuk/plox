@@ -1,0 +1,8 @@
+print "one";
+print true;
+print ("hello" + " " + "world"+"!");
+print "com//ment/*ing" + /* on "*/ "*/ on stuff";
+// Line comment
+123;
+
+

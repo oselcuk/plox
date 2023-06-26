@@ -1,0 +1,18 @@
+[project]
+name = "plox" 
+version = "0.1" 
+requires-python = ">=3.11"
+
+dependencies = [
+]
+
+# [project.optional-dependencies] # Optional
+# dev = ["check-manifest"]
+# test = ["coverage"]
+
+[project.scripts]
+lox = "lox:lox"
+
+[build-system]
+requires = ["setuptools>=43.0.0", "wheel"]
+build-backend = "setuptools.build_meta"

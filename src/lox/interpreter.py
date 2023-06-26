@@ -1,8 +1,10 @@
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from exceptions import LoxError
-from expr import Binary, Expr, Grouping, Literal, LoxType, Unary, Visitor
-from scanner import Token, TokenType as TT
+
+from lox.exceptions import LoxError
+from lox.expr import Binary, Expr, Grouping, Literal, Unary, ExprVisitor
+from lox.scanner import Token, TokenType as TT
+from lox.stmt import Expression, Print, Stmt, StmtVisitor
+from lox.value import LoxObject, LoxValue
 
 
 class LoxRuntimeError(LoxError):
@@ -25,39 +27,34 @@ class LoxTypeError(LoxRuntimeError):
         super().__init__(f"[line {token.line}]: {message}")
 
 
-@dataclass(frozen=True)
-class LoxObject:
-    val: LoxType
-
-    def __str__(self) -> str:
-        if self.val is None:
-            return "nil"
-        if isinstance(self.val, bool):
-            return str(self.val).lower()
-        if isinstance(self.val, float):
-            return f"{self.val:g}"
-        return self.val
-
-
-class Interpreter(Visitor[LoxType]):
-    def interpret(self, expr: Expr) -> LoxObject:
-        return LoxObject(self.evaluate(expr))
+class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
+    def interpret(self, statements: list[Stmt]):
+        for stmt in statements:
+            stmt.accept(self)
+        # return LoxObject(self.evaluate(expr))
         # try:
         #     return self.evaluate(expr)
         # except LoxRuntimeError as error:
         #     return error
 
-    def evaluate(self, expr: Expr) -> LoxType:
+    def visit_expression(self, expr: Expression) -> None:
+        self.evaluate_expr(expr.expr)
+
+    def visit_print(self, expr: Print) -> None:
+        val = self.evaluate_expr(expr.expr)
+        print(LoxObject(val))
+
+    def evaluate_expr(self, expr: Expr) -> LoxValue:
         try:
             return expr.accept(self)
         except ArithmeticError as error:
             # pylint: disable=raise-missing-from
             raise LoxArithmeticError(expr, f"Error evaluating expression: {error}")
 
-    def visit_binary(self, expr: Binary) -> LoxType:
+    def visit_binary(self, expr: Binary) -> LoxValue:
         # FUTURE: Deal with short circuiting here before evaluation
-        left = self.evaluate(expr.left)
-        right = self.evaluate(expr.right)
+        left = self.evaluate_expr(expr.left)
+        right = self.evaluate_expr(expr.right)
         # Deal with equality, which has no type constraints.
         match expr.operator.typ:
             case TT.EQUAL_EQUAL:
@@ -100,14 +97,14 @@ class Interpreter(Visitor[LoxType]):
                 return left <= right
         raise LoxTypeError(expr.operator, "Unexpected binary operation.")
 
-    def visit_grouping(self, expr: Grouping) -> LoxType:
-        return self.evaluate(expr.expr)
+    def visit_grouping(self, expr: Grouping) -> LoxValue:
+        return self.evaluate_expr(expr.expr)
 
-    def visit_literal(self, expr: Literal) -> LoxType:
+    def visit_literal(self, expr: Literal) -> LoxValue:
         return expr.value
 
-    def visit_unary(self, expr: Unary) -> LoxType:
-        val = self.evaluate(expr.right)
+    def visit_unary(self, expr: Unary) -> LoxValue:
+        val = self.evaluate_expr(expr.right)
         match expr.operator.typ:
             case TT.MINUS:
                 self.check_types(expr.operator, float, "Operand must be a number.", val)
@@ -118,11 +115,11 @@ class Interpreter(Visitor[LoxType]):
                 return not self.is_truthy(val)
         raise LoxTypeError(expr.operator, "Unexpected unary operation.")
 
-    def is_truthy(self, val: LoxType) -> bool:
+    def is_truthy(self, val: LoxValue) -> bool:
         if val is None or val is False:
             return False
         return True
 
-    def check_types(self, token: Token, typ: type, message: str, *values: LoxType):
+    def check_types(self, token: Token, typ: type, message: str, *values: LoxValue):
         if not all(isinstance(val, typ) for val in values):
             raise LoxTypeError(token, message)
