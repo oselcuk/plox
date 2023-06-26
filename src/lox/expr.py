@@ -21,6 +21,12 @@ class ExprVisitor(Protocol[T_co]):
     def visit_unary(self, expr: "Unary") -> T_co:
         ...
 
+    def visit_variable(self, expr: "Variable") -> T_co:
+        ...
+
+    def visit_assign(self, expr: "Assign") -> T_co:
+        ...
+
 
 @dataclass(frozen=True)
 class Expr:
@@ -52,3 +58,14 @@ class Literal(Expr):
 class Unary(Expr):
     operator: Token
     right: Expr
+
+
+@dataclass(frozen=True)
+class Variable(Expr):
+    name: Token
+
+
+@dataclass(frozen=True)
+class Assign(Expr):
+    name: Token
+    value: Expr

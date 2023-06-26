@@ -1,9 +1,18 @@
 from typing import TYPE_CHECKING
 
 from lox.exceptions import LoxError
-from lox.expr import Binary, Expr, Grouping, Literal, Unary, ExprVisitor
+from lox.expr import (
+    Assign,
+    Binary,
+    Expr,
+    Grouping,
+    Literal,
+    Unary,
+    ExprVisitor,
+    Variable,
+)
 from lox.scanner import Token, TokenType as TT
-from lox.stmt import Expression, Print, Stmt, StmtVisitor
+from lox.stmt import Expression, Print, Stmt, StmtVisitor, Var
 from lox.value import LoxObject, LoxValue
 
 
@@ -27,7 +36,34 @@ class LoxTypeError(LoxRuntimeError):
         super().__init__(f"[line {token.line}]: {message}")
 
 
+class Environment:
+    env: dict[str, LoxValue]
+
+    def __init__(self) -> None:
+        self.env = {}
+
+    def define(self, name: str, value: LoxValue):
+        if name in self.env:
+            raise LoxRuntimeError(f"Cannot redeclare variable {name}.")
+        self.env[name] = value
+
+    def set(self, name: str, value: LoxValue):
+        if name not in self.env:
+            raise LoxRuntimeError(f"Undefined variable {name}.")
+        self.env[name] = value
+
+    def get(self, name: str) -> LoxValue:
+        if name not in self.env:
+            raise LoxRuntimeError(f"Undefined variable {name}.")
+        return self.env[name]
+
+
 class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
+    env: Environment
+
+    def __init__(self) -> None:
+        self.env = Environment()
+
     def interpret(self, statements: list[Stmt]):
         for stmt in statements:
             stmt.accept(self)
@@ -37,12 +73,19 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
         # except LoxRuntimeError as error:
         #     return error
 
-    def visit_expression(self, expr: Expression) -> None:
-        self.evaluate_expr(expr.expr)
+    def visit_expression(self, stmt: Expression) -> None:
+        self.evaluate_expr(stmt.expr)
 
-    def visit_print(self, expr: Print) -> None:
-        val = self.evaluate_expr(expr.expr)
+    def visit_print(self, stmt: Print) -> None:
+        val = self.evaluate_expr(stmt.expr)
         print(LoxObject(val))
+
+    def visit_var(self, stmt: Var) -> None:
+        name = stmt.name.lexeme
+        val: LoxValue = None
+        if stmt.initializer:
+            val = self.evaluate_expr(stmt.initializer)
+        self.env.define(name, val)
 
     def evaluate_expr(self, expr: Expr) -> LoxValue:
         try:
@@ -114,6 +157,14 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
             case TT.BANG:
                 return not self.is_truthy(val)
         raise LoxTypeError(expr.operator, "Unexpected unary operation.")
+
+    def visit_variable(self, expr: Variable) -> LoxValue:
+        return self.env.get(expr.name.lexeme)
+
+    def visit_assign(self, expr: Assign) -> LoxValue:
+        val = expr.value.accept(self)
+        self.env.set(expr.name.lexeme, val)
+        return val
 
     def is_truthy(self, val: LoxValue) -> bool:
         if val is None or val is False:

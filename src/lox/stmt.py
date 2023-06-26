@@ -2,16 +2,20 @@ from dataclasses import dataclass
 from typing import Protocol, TypeVar
 
 from lox.expr import Expr
+from lox.scanner import Token
 
 
 T_co = TypeVar("T_co", covariant=True)
 
 
 class StmtVisitor(Protocol[T_co]):
-    def visit_expression(self, expr: "Expression") -> T_co:
+    def visit_expression(self, stmt: "Expression") -> T_co:
         ...
 
-    def visit_print(self, expr: "Print") -> T_co:
+    def visit_print(self, stmt: "Print") -> T_co:
+        ...
+
+    def visit_var(self, stmt: "Var") -> T_co:
         ...
 
 
@@ -32,3 +36,9 @@ class Expression(Stmt):
 @dataclass(frozen=True)
 class Print(Stmt):
     expr: Expr
+
+
+@dataclass(frozen=True)
+class Var(Stmt):
+    name: Token
+    initializer: Expr | None

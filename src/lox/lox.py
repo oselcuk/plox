@@ -23,23 +23,24 @@ def run_file(path: str):
     with open(path, encoding="utf-8") as source_file:
         source = source_file.read()
     try:
-        run(source)
+        run(Interpreter(), source)
     except LoxError as error:
         print(error)
         sys.exit(65)
 
 
 def run_prompt():
+    interpreter = Interpreter()
     while True:
         try:
-            run(input("> "))
+            run(interpreter, input("> "))
         except LoxError as error:
             print(error)
         except EOFError:
             break
 
 
-def run(source: str):
+def run(interpreter: Interpreter, source: str):
     scanner = Scanner(source)
     tokens, errors = scanner.scan_tokens()
     # FUTURE: Should this raise instead? Does it make sense to continue
@@ -61,7 +62,7 @@ def run(source: str):
     print(AstPrinter().print(expr), file=sys.stderr)
     print(file=sys.stderr)
 
-    Interpreter().interpret(expr)
+    interpreter.interpret(expr)
 
 
 if __name__ == "__main__":

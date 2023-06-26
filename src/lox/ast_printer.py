@@ -1,6 +1,15 @@
 from typing import Sequence
-from lox.expr import Binary, Expr, Grouping, Literal, Unary, ExprVisitor
-from lox.stmt import Expression, Print, Stmt, StmtVisitor
+from lox.expr import (
+    Binary,
+    Expr,
+    Grouping,
+    Literal,
+    Unary,
+    ExprVisitor,
+    Variable,
+    Assign,
+)
+from lox.stmt import Expression, Print, Stmt, StmtVisitor, Var
 
 
 class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
@@ -25,8 +34,20 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
     def visit_unary(self, expr: Unary) -> str:
         return self.parenthesize(expr.operator.lexeme, expr.right)
 
-    def visit_expression(self, expr: Expression) -> str:
-        return f"({expr.expr.accept(self)} ; )"
+    def visit_variable(self, expr: Variable) -> str:
+        return f"( variable {expr.name} )"
 
-    def visit_print(self, expr: Print) -> str:
-        return self.parenthesize("print", expr.expr)
+    def visit_assign(self, expr: Assign) -> str:
+        return f"( assign {expr.name.lexeme} {expr.value.accept(self)})"
+
+    def visit_expression(self, stmt: Expression) -> str:
+        return f"( {stmt.expr.accept(self)} ; )"
+
+    def visit_print(self, stmt: Print) -> str:
+        return self.parenthesize("print", stmt.expr)
+
+    def visit_var(self, stmt: Var) -> str:
+        val = "{uninitialized}"
+        if stmt.initializer:
+            val = stmt.initializer.accept(self)
+        return f"( var {stmt.name} {val} )"

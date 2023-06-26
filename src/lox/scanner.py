@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
 
+from lox.value import LoxValue
+
 # fmt: off
 TokenType = Enum("TokenType", [
     # Single-character tokens.
@@ -52,7 +54,7 @@ keywords = {
 class Token:
     typ: TokenType
     lexeme: str
-    literal: Any
+    literal: LoxValue
     line: int
 
     def __str__(self):
