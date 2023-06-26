@@ -9,7 +9,7 @@ from lox.expr import (
     Variable,
     Assign,
 )
-from lox.stmt import Block, Expression, Print, Stmt, StmtVisitor, Var
+from lox.stmt import Block, Expression, If, Print, Stmt, StmtVisitor, Var
 
 
 class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
@@ -55,3 +55,11 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
     def visit_block(self, stmt: Block) -> str:
         val = " ; ".join(s.accept(self) for s in stmt.statements)
         return f"{{ {val} }}"
+
+    def visit_if(self, stmt: If) -> str:
+        cond = stmt.conditional.accept(self)
+        then = stmt.then_branch.accept(self)
+        res = f"if ( {cond} ) then {{ {then} }}"
+        if stmt.else_branch:
+            res += f" else {{ {stmt.else_branch.accept(self)} }}"
+        return res

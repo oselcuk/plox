@@ -16,3 +16,8 @@ class LoxObject:
         if isinstance(self.val, float):
             return f"{self.val:g}"
         return self.val
+
+    def is_truthy(self) -> bool:
+        if self.val is None or self.val is False:
+            return False
+        return True

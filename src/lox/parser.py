@@ -4,7 +4,7 @@ from lox.exceptions import LoxError
 from lox.expr import Assign, Binary, Expr, Grouping, Literal, Unary, Variable
 from lox.scanner import Token
 from lox.scanner import TokenType as TT
-from lox.stmt import Block, Expression, Print, Stmt, Var
+from lox.stmt import Block, Expression, If, Print, Stmt, Var
 
 ErrorReporterType = Callable[[int, str, str], None]
 
@@ -55,6 +55,8 @@ class Parser:
             return self.print_statement()
         if self.match(TT.LEFT_BRACE):
             return Block(self.block_statement())
+        if self.match(TT.IF):
+            return self.if_statement()
         return self.expression_statement()
 
     def print_statement(self) -> Stmt:
@@ -69,6 +71,16 @@ class Parser:
                 statements.append(stmt)
         self.consume(TT.RIGHT_BRACE, "Expect closing brace after block.")
         return statements
+
+    def if_statement(self) -> Stmt:
+        self.consume(TT.LEFT_PAREN, "Expect parenthses around condition.")
+        cond = self.expression()
+        self.consume(TT.RIGHT_PAREN, "Expect parenthses around condition.")
+        then = self.statement()
+        else_: Stmt | None = None
+        if self.match(TT.ELSE):
+            else_ = self.statement()
+        return If(cond, then, else_)
 
     def expression_statement(self) -> Stmt:
         expr = self.expression()

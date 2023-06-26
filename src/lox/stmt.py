@@ -21,6 +21,9 @@ class StmtVisitor(Protocol[T_co]):
     def visit_block(self, stmt: "Block") -> T_co:
         ...
 
+    def visit_if(self, stmt: "If") -> T_co:
+        ...
+
 
 @dataclass(frozen=True)
 class Stmt:
@@ -50,3 +53,10 @@ class Var(Stmt):
 @dataclass(frozen=True)
 class Block(Stmt):
     statements: list[Stmt]
+
+
+@dataclass(frozen=True)
+class If(Stmt):
+    conditional: Expr
+    then_branch: Stmt
+    else_branch: Stmt | None

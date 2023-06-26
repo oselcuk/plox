@@ -12,7 +12,7 @@ from lox.expr import (
     Variable,
 )
 from lox.scanner import Token, TokenType as TT
-from lox.stmt import Block, Expression, Print, Stmt, StmtVisitor, Var
+from lox.stmt import Block, Expression, If, Print, Stmt, StmtVisitor, Var
 from lox.value import LoxObject, LoxValue
 
 
@@ -104,6 +104,12 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
             assert self.env.parent is not None
             self.env = self.env.parent
 
+    def visit_if(self, stmt: If) -> None:
+        if LoxObject(stmt.conditional.accept(self)).is_truthy():
+            stmt.then_branch.accept(self)
+        elif stmt.else_branch:
+            stmt.else_branch.accept(self)
+
     def evaluate_expr(self, expr: Expr) -> LoxValue:
         try:
             return expr.accept(self)
@@ -172,7 +178,7 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
                     assert isinstance(val, float)
                 return -val
             case TT.BANG:
-                return not self.is_truthy(val)
+                return not LoxObject(val).is_truthy()
         raise LoxTypeError(expr.operator, "Unexpected unary operation.")
 
     def visit_variable(self, expr: Variable) -> LoxValue:
@@ -182,11 +188,6 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
         val = expr.value.accept(self)
         self.env.set(expr.name.lexeme, val)
         return val
-
-    def is_truthy(self, val: LoxValue) -> bool:
-        if val is None or val is False:
-            return False
-        return True
 
     def check_types(self, token: Token, typ: type, message: str, *values: LoxValue):
         if not all(isinstance(val, typ) for val in values):
