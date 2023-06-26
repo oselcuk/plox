@@ -4,7 +4,7 @@ from lox.exceptions import LoxError
 from lox.expr import Assign, Binary, Expr, Grouping, Literal, Unary, Variable
 from lox.scanner import Token
 from lox.scanner import TokenType as TT
-from lox.stmt import Expression, Print, Stmt, Var
+from lox.stmt import Block, Expression, Print, Stmt, Var
 
 ErrorReporterType = Callable[[int, str, str], None]
 
@@ -53,12 +53,22 @@ class Parser:
     def statement(self) -> Stmt:
         if self.match(TT.PRINT):
             return self.print_statement()
+        if self.match(TT.LEFT_BRACE):
+            return Block(self.block_statement())
         return self.expression_statement()
 
     def print_statement(self) -> Stmt:
         expr = self.expression()
         self.consume(TT.SEMICOLON, "Expect semicolon after value.")
         return Print(expr)
+
+    def block_statement(self) -> list[Stmt]:
+        statements: list[Stmt] = []
+        while self.peek().typ != TT.RIGHT_BRACE and not self.is_at_end():
+            if stmt := self.declaration():
+                statements.append(stmt)
+        self.consume(TT.RIGHT_BRACE, "Expect closing brace after block.")
+        return statements
 
     def expression_statement(self) -> Stmt:
         expr = self.expression()

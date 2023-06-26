@@ -9,7 +9,7 @@ from lox.expr import (
     Variable,
     Assign,
 )
-from lox.stmt import Expression, Print, Stmt, StmtVisitor, Var
+from lox.stmt import Block, Expression, Print, Stmt, StmtVisitor, Var
 
 
 class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
@@ -50,4 +50,8 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
         val = "{uninitialized}"
         if stmt.initializer:
             val = stmt.initializer.accept(self)
-        return f"( var {stmt.name} {val} )"
+        return f"( var {stmt.name.lexeme} {val} )"
+
+    def visit_block(self, stmt: Block) -> str:
+        val = " ; ".join(s.accept(self) for s in stmt.statements)
+        return f"{{ {val} }}"

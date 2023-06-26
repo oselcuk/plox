@@ -18,6 +18,9 @@ class StmtVisitor(Protocol[T_co]):
     def visit_var(self, stmt: "Var") -> T_co:
         ...
 
+    def visit_block(self, stmt: "Block") -> T_co:
+        ...
+
 
 @dataclass(frozen=True)
 class Stmt:
@@ -42,3 +45,8 @@ class Print(Stmt):
 class Var(Stmt):
     name: Token
     initializer: Expr | None
+
+
+@dataclass(frozen=True)
+class Block(Stmt):
+    statements: list[Stmt]

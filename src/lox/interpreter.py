@@ -12,7 +12,7 @@ from lox.expr import (
     Variable,
 )
 from lox.scanner import Token, TokenType as TT
-from lox.stmt import Expression, Print, Stmt, StmtVisitor, Var
+from lox.stmt import Block, Expression, Print, Stmt, StmtVisitor, Var
 from lox.value import LoxObject, LoxValue
 
 
@@ -38,9 +38,11 @@ class LoxTypeError(LoxRuntimeError):
 
 class Environment:
     env: dict[str, LoxValue]
+    parent: "Environment | None"
 
-    def __init__(self) -> None:
+    def __init__(self, parent: "Environment | None" = None) -> None:
         self.env = {}
+        self.parent = parent
 
     def define(self, name: str, value: LoxValue):
         if name in self.env:
@@ -48,14 +50,20 @@ class Environment:
         self.env[name] = value
 
     def set(self, name: str, value: LoxValue):
-        if name not in self.env:
+        if name in self.env:
+            self.env[name] = value
+        elif self.parent is not None:
+            self.parent.set(name, value)
+        else:
             raise LoxRuntimeError(f"Undefined variable {name}.")
-        self.env[name] = value
 
     def get(self, name: str) -> LoxValue:
-        if name not in self.env:
+        if name in self.env:
+            return self.env[name]
+        if self.parent is not None:
+            return self.parent.get(name)
+        else:
             raise LoxRuntimeError(f"Undefined variable {name}.")
-        return self.env[name]
 
 
 class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
@@ -86,6 +94,15 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
         if stmt.initializer:
             val = self.evaluate_expr(stmt.initializer)
         self.env.define(name, val)
+
+    def visit_block(self, stmt: Block) -> None:
+        try:
+            self.env = Environment(self.env)
+            for statement in stmt.statements:
+                statement.accept(self)
+        finally:
+            assert self.env.parent is not None
+            self.env = self.env.parent
 
     def evaluate_expr(self, expr: Expr) -> LoxValue:
         try:
