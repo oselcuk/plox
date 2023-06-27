@@ -4,7 +4,7 @@ from lox.exceptions import LoxError
 from lox.expr import Assign, Binary, Expr, Grouping, Literal, Logical, Unary, Variable
 from lox.scanner import Token
 from lox.scanner import TokenType as TT
-from lox.stmt import Block, Expression, For, If, Print, Stmt, Var, While
+from lox.stmt import Block, Expression, If, Print, Stmt, Var, While
 
 ErrorReporterType = Callable[[int, str, str], None]
 
@@ -97,14 +97,12 @@ class Parser:
 
     def for_(self) -> Stmt:
         self.consume(TT.LEFT_PAREN, "Expect parenthses around for header.")
-        init: Expression | Var | None = None
+        statements: list[Stmt] = []
         if self.match(TT.VAR):
-            if (stmt := self.var_declaration()) and isinstance(stmt, Var):
-                init = stmt
+            statements.append(self.var_declaration())
         elif not self.match(TT.SEMICOLON):
-            if (stmt := self.expression_statement()) and isinstance(stmt, Expression):
-                init = stmt
-        cond: Expr | None = None
+            statements.append(self.expression_statement())
+        cond: Expr = Literal(True)
         if not self.match(TT.SEMICOLON):
             cond = self.expression()
         self.consume(TT.SEMICOLON, "Expect semicolon after for condition.")
@@ -113,7 +111,10 @@ class Parser:
             advancement = self.expression()
         self.consume(TT.RIGHT_PAREN, "Expect parenthses around for header.")
         body = self.statement()
-        return For(init, cond, advancement, body)
+        if advancement is not None:
+            body = Block([body, Expression(advancement)])
+        statements.append(While(cond, body))
+        return Block(statements)
 
     def expression_statement(self) -> Stmt:
         expr = self.expression()

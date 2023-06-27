@@ -10,7 +10,7 @@ from lox.expr import (
     Variable,
     Assign,
 )
-from lox.stmt import Block, Expression, For, If, Print, Stmt, StmtVisitor, Var, While
+from lox.stmt import Block, Expression, If, Print, Stmt, StmtVisitor, Var, While
 
 
 class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
@@ -48,12 +48,6 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
         return (
             f"while ( {stmt.conditional.accept(self)} ) {{ {stmt.body.accept(self)} }}"
         )
-
-    def visit_for(self, stmt: For) -> str:
-        init = stmt.initializer.accept(self) if stmt.initializer else ""
-        cond = stmt.conditional.accept(self) if stmt.conditional else ""
-        advancement = stmt.advancement.accept(self) if stmt.advancement else ""
-        return f"for ( {init} ; {cond} ; {advancement} ) {{ {stmt.body.accept(self)} }}"
 
     def visit_expression(self, stmt: Expression) -> str:
         return f"( {stmt.expr.accept(self)} ; )"

@@ -13,7 +13,7 @@ from lox.expr import (
     Variable,
 )
 from lox.scanner import Token, TokenType as TT
-from lox.stmt import Block, Expression, For, If, Print, Stmt, StmtVisitor, Var, While
+from lox.stmt import Block, Expression, If, Print, Stmt, StmtVisitor, Var, While
 from lox.value import LoxObject, LoxValue
 
 
@@ -114,25 +114,6 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
     def visit_while(self, stmt: While) -> None:
         while LoxObject(stmt.conditional.accept(self)).is_truthy():
             stmt.body.accept(self)
-
-    def visit_for(self, stmt: For) -> None:
-        try:
-            self.env = Environment(self.env)
-            if init := stmt.initializer:
-                init.accept(self)
-
-            def cond():
-                if cond := stmt.conditional:
-                    return LoxObject(cond.accept(self)).is_truthy()
-                return True
-
-            while cond():
-                stmt.body.accept(self)
-                if adv := stmt.advancement:
-                    adv.accept(self)
-        finally:
-            assert self.env.parent is not None
-            self.env = self.env.parent
 
     def evaluate_expr(self, expr: Expr) -> LoxValue:
         try:
