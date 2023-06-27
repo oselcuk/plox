@@ -4,12 +4,13 @@ from lox.expr import (
     Expr,
     Grouping,
     Literal,
+    Logical,
     Unary,
     ExprVisitor,
     Variable,
     Assign,
 )
-from lox.stmt import Block, Expression, If, Print, Stmt, StmtVisitor, Var
+from lox.stmt import Block, Expression, For, If, Print, Stmt, StmtVisitor, Var, While
 
 
 class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
@@ -39,6 +40,20 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
 
     def visit_assign(self, expr: Assign) -> str:
         return f"( assign {expr.name.lexeme} {expr.value.accept(self)})"
+
+    def visit_logical(self, expr: Logical) -> str:
+        return self.parenthesize(expr.operator.lexeme, expr.left, expr.right)
+
+    def visit_while(self, stmt: While) -> str:
+        return (
+            f"while ( {stmt.conditional.accept(self)} ) {{ {stmt.body.accept(self)} }}"
+        )
+
+    def visit_for(self, stmt: For) -> str:
+        init = stmt.initializer.accept(self) if stmt.initializer else ""
+        cond = stmt.conditional.accept(self) if stmt.conditional else ""
+        advancement = stmt.advancement.accept(self) if stmt.advancement else ""
+        return f"for ( {init} ; {cond} ; {advancement} ) {{ {stmt.body.accept(self)} }}"
 
     def visit_expression(self, stmt: Expression) -> str:
         return f"( {stmt.expr.accept(self)} ; )"

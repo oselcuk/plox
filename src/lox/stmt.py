@@ -24,6 +24,12 @@ class StmtVisitor(Protocol[T_co]):
     def visit_if(self, stmt: "If") -> T_co:
         ...
 
+    def visit_while(self, stmt: "While") -> T_co:
+        ...
+
+    def visit_for(self, stmt: "For") -> T_co:
+        ...
+
 
 @dataclass(frozen=True)
 class Stmt:
@@ -60,3 +66,17 @@ class If(Stmt):
     conditional: Expr
     then_branch: Stmt
     else_branch: Stmt | None
+
+
+@dataclass(frozen=True)
+class While(Stmt):
+    conditional: Expr
+    body: Stmt
+
+
+@dataclass(frozen=True)
+class For(Stmt):
+    initializer: Expression | Var | None
+    conditional: Expr | None
+    advancement: Expr | None
+    body: Stmt

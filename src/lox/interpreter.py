@@ -7,12 +7,13 @@ from lox.expr import (
     Expr,
     Grouping,
     Literal,
+    Logical,
     Unary,
     ExprVisitor,
     Variable,
 )
 from lox.scanner import Token, TokenType as TT
-from lox.stmt import Block, Expression, If, Print, Stmt, StmtVisitor, Var
+from lox.stmt import Block, Expression, For, If, Print, Stmt, StmtVisitor, Var, While
 from lox.value import LoxObject, LoxValue
 
 
@@ -110,6 +111,29 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
         elif stmt.else_branch:
             stmt.else_branch.accept(self)
 
+    def visit_while(self, stmt: While) -> None:
+        while LoxObject(stmt.conditional.accept(self)).is_truthy():
+            stmt.body.accept(self)
+
+    def visit_for(self, stmt: For) -> None:
+        try:
+            self.env = Environment(self.env)
+            if init := stmt.initializer:
+                init.accept(self)
+
+            def cond():
+                if cond := stmt.conditional:
+                    return LoxObject(cond.accept(self)).is_truthy()
+                return True
+
+            while cond():
+                stmt.body.accept(self)
+                if adv := stmt.advancement:
+                    adv.accept(self)
+        finally:
+            assert self.env.parent is not None
+            self.env = self.env.parent
+
     def evaluate_expr(self, expr: Expr) -> LoxValue:
         try:
             return expr.accept(self)
@@ -188,6 +212,13 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
         val = expr.value.accept(self)
         self.env.set(expr.name.lexeme, val)
         return val
+
+    def visit_logical(self, expr: Logical) -> LoxValue:
+        val = LoxObject(expr.left.accept(self))
+        # Short circuit:
+        if (val.is_truthy(), expr.operator.typ) in ((True, TT.OR), (False, TT.AND)):
+            return val.val
+        return expr.right.accept(self)
 
     def check_types(self, token: Token, typ: type, message: str, *values: LoxValue):
         if not all(isinstance(val, typ) for val in values):

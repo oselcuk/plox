@@ -27,6 +27,9 @@ class ExprVisitor(Protocol[T_co]):
     def visit_assign(self, expr: "Assign") -> T_co:
         ...
 
+    def visit_logical(self, expr: "Logical") -> T_co:
+        ...
+
 
 @dataclass(frozen=True)
 class Expr:
@@ -69,3 +72,10 @@ class Variable(Expr):
 class Assign(Expr):
     name: Token
     value: Expr
+
+
+@dataclass(frozen=True)
+class Logical(Expr):
+    left: Expr
+    operator: Token
+    right: Expr

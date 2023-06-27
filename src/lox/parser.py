@@ -1,10 +1,10 @@
 from typing import Callable, Optional
 
 from lox.exceptions import LoxError
-from lox.expr import Assign, Binary, Expr, Grouping, Literal, Unary, Variable
+from lox.expr import Assign, Binary, Expr, Grouping, Literal, Logical, Unary, Variable
 from lox.scanner import Token
 from lox.scanner import TokenType as TT
-from lox.stmt import Block, Expression, If, Print, Stmt, Var
+from lox.stmt import Block, Expression, For, If, Print, Stmt, Var, While
 
 ErrorReporterType = Callable[[int, str, str], None]
 
@@ -57,6 +57,10 @@ class Parser:
             return Block(self.block_statement())
         if self.match(TT.IF):
             return self.if_statement()
+        if self.match(TT.WHILE):
+            return self.while_()
+        if self.match(TT.FOR):
+            return self.for_()
         return self.expression_statement()
 
     def print_statement(self) -> Stmt:
@@ -72,15 +76,44 @@ class Parser:
         self.consume(TT.RIGHT_BRACE, "Expect closing brace after block.")
         return statements
 
-    def if_statement(self) -> Stmt:
+    def parse_condition(self) -> Expr:
         self.consume(TT.LEFT_PAREN, "Expect parenthses around condition.")
         cond = self.expression()
         self.consume(TT.RIGHT_PAREN, "Expect parenthses around condition.")
+        return cond
+
+    def if_statement(self) -> Stmt:
+        cond = self.parse_condition()
         then = self.statement()
         else_: Stmt | None = None
         if self.match(TT.ELSE):
             else_ = self.statement()
         return If(cond, then, else_)
+
+    def while_(self) -> Stmt:
+        cond = self.parse_condition()
+        body = self.statement()
+        return While(cond, body)
+
+    def for_(self) -> Stmt:
+        self.consume(TT.LEFT_PAREN, "Expect parenthses around for header.")
+        init: Expression | Var | None = None
+        if self.match(TT.VAR):
+            if (stmt := self.var_declaration()) and isinstance(stmt, Var):
+                init = stmt
+        elif not self.match(TT.SEMICOLON):
+            if (stmt := self.expression_statement()) and isinstance(stmt, Expression):
+                init = stmt
+        cond: Expr | None = None
+        if not self.match(TT.SEMICOLON):
+            cond = self.expression()
+        self.consume(TT.SEMICOLON, "Expect semicolon after for condition.")
+        advancement: Expr | None = None
+        if not self.match(TT.SEMICOLON):
+            advancement = self.expression()
+        self.consume(TT.RIGHT_PAREN, "Expect parenthses around for header.")
+        body = self.statement()
+        return For(init, cond, advancement, body)
 
     def expression_statement(self) -> Stmt:
         expr = self.expression()
@@ -91,12 +124,24 @@ class Parser:
         return self.assignment()
 
     def assignment(self) -> Expr:
-        expr = self.equality()
+        expr = self.or_()
         if equals := self.match(TT.EQUAL):
             value = self.assignment()
             if isinstance(expr, Variable):
                 return Assign(expr.name, value)
             self.error(equals, "Invalid assignment target.")
+        return expr
+
+    def or_(self) -> Expr:
+        expr = self.and_()
+        while operator := self.match(TT.OR):
+            expr = Logical(expr, operator, self.and_())
+        return expr
+
+    def and_(self) -> Expr:
+        expr = self.equality()
+        while operator := self.match(TT.AND):
+            expr = Logical(expr, operator, self.equality())
         return expr
 
     def equality(self) -> Expr:
