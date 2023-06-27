@@ -30,6 +30,9 @@ class ExprVisitor(Protocol[T_co]):
     def visit_logical(self, expr: "Logical") -> T_co:
         ...
 
+    def visit_call(self, expr: "Call") -> T_co:
+        ...
+
 
 @dataclass(frozen=True)
 class Expr:
@@ -79,3 +82,10 @@ class Logical(Expr):
     left: Expr
     operator: Token
     right: Expr
+
+
+@dataclass(frozen=True)
+class Call(Expr):
+    callee: Expr
+    paren: Token
+    arguments: list[Expr]

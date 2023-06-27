@@ -4,6 +4,7 @@ from lox.exceptions import LoxError
 from lox.expr import (
     Assign,
     Binary,
+    Call,
     Expr,
     Grouping,
     Literal,
@@ -14,7 +15,7 @@ from lox.expr import (
 )
 from lox.scanner import Token, TokenType as TT
 from lox.stmt import Block, Expression, Break, If, Print, Stmt, StmtVisitor, Var, While
-from lox.value import LoxObject, LoxValue
+from lox.value import LoxCallable, LoxObject, LoxValue
 
 
 class LoxRuntimeError(LoxError):
@@ -214,6 +215,18 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
         if (val.is_truthy(), expr.operator.typ) in ((True, TT.OR), (False, TT.AND)):
             return val.val
         return expr.right.accept(self)
+
+    def visit_call(self, expr: Call) -> LoxValue:
+        callee = self.evaluate_expr(expr.callee)
+        arguments: list[LoxValue] = [self.evaluate_expr(arg) for arg in expr.arguments]
+        if not isinstance(callee, LoxCallable):
+            raise LoxRuntimeError("Can only call functions and classes.")
+        func: LoxCallable = callee
+        if len(arguments) != func.arity:
+            raise LoxRuntimeError(
+                f"Expected {func.arity} arguments, got {len(arguments)}."
+            )
+        return func.call(self, *arguments)
 
     def check_types(self, token: Token, typ: type, message: str, *values: LoxValue):
         if not all(isinstance(val, typ) for val in values):

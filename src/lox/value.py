@@ -1,7 +1,16 @@
 from dataclasses import dataclass
+from typing import Any, Protocol, runtime_checkable
 
 
-LoxValue = None | bool | float | str
+@runtime_checkable
+class LoxCallable(Protocol):
+    arity: int
+
+    def call(self, interpreter: Any, *args) -> "LoxValue":
+        pass
+
+
+LoxValue = None | bool | float | str | LoxCallable
 
 
 @dataclass(frozen=True)
@@ -15,6 +24,8 @@ class LoxObject:
             return str(self.val).lower()
         if isinstance(self.val, float):
             return f"{self.val:g}"
+        if isinstance(self.val, LoxCallable):
+            return "function"
         return self.val
 
     def is_truthy(self) -> bool:

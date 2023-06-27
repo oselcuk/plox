@@ -1,6 +1,7 @@
 from typing import Sequence
 from lox.expr import (
     Binary,
+    Call,
     Expr,
     Grouping,
     Literal,
@@ -43,6 +44,9 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
 
     def visit_logical(self, expr: Logical) -> str:
         return self.parenthesize(expr.operator.lexeme, expr.left, expr.right)
+
+    def visit_call(self, expr: Call) -> str:
+        return self.parenthesize(expr.callee.accept(self), *expr.arguments)
 
     def visit_while(self, stmt: While) -> str:
         return (

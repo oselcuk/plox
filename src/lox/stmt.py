@@ -77,3 +77,8 @@ class While(Stmt):
 @dataclass(frozen=True)
 class Break(Stmt):
     pass
+
+
+@dataclass(frozen=True)
+class Fun(Stmt):
+    pass

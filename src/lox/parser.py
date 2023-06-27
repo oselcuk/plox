@@ -1,7 +1,17 @@
 from typing import Callable, Optional
 
 from lox.exceptions import LoxError
-from lox.expr import Assign, Binary, Expr, Grouping, Literal, Logical, Unary, Variable
+from lox.expr import (
+    Assign,
+    Binary,
+    Call,
+    Expr,
+    Grouping,
+    Literal,
+    Logical,
+    Unary,
+    Variable,
+)
 from lox.scanner import Token
 from lox.scanner import TokenType as TT
 from lox.stmt import Block, Expression, Break, If, Print, Stmt, Var, While
@@ -185,7 +195,25 @@ class Parser:
     def unary(self) -> Expr:
         if tok := self.match(TT.BANG, TT.MINUS):
             return Unary(tok, self.unary())
-        return self.primary()
+        return self.call()
+
+    def call(self) -> Expr:
+        expr = self.primary()
+        while (paren := self.match(TT.LEFT_PAREN)) is not None:
+            arguments = self.arguments()
+            expr = Call(expr, paren, arguments)
+        return expr
+
+    def arguments(self) -> list[Expr]:
+        if self.match(TT.RIGHT_PAREN):
+            return []
+        args: list[Expr] = [self.expression()]
+        while not self.match(TT.RIGHT_PAREN):
+            self.consume(TT.COMMA, "Expect comma between args.")
+            if len(args) >= 255:
+                self.error(self.peek(), "Can't have more than 255 arguments.")
+            args.append(self.expression())
+        return args
 
     def primary(self) -> Expr:
         if self.match(TT.FALSE):
