@@ -4,7 +4,7 @@ from lox.exceptions import LoxError
 from lox.expr import Assign, Binary, Expr, Grouping, Literal, Logical, Unary, Variable
 from lox.scanner import Token
 from lox.scanner import TokenType as TT
-from lox.stmt import Block, Expression, If, Print, Stmt, Var, While
+from lox.stmt import Block, Expression, Break, If, Print, Stmt, Var, While
 
 ErrorReporterType = Callable[[int, str, str], None]
 
@@ -18,6 +18,8 @@ class LoxParseError(LoxError):
 class Parser:
     tokens: list[Token]
     current: int = 0
+    # To know when to allow flow control words like "break".
+    loop_depth: int = 0
 
     def __init__(self, tokens: list[Token]) -> None:
         self.tokens = tokens
@@ -61,6 +63,8 @@ class Parser:
             return self.while_()
         if self.match(TT.FOR):
             return self.for_()
+        if token := self.match(TT.BREAK):
+            return self.break_()
         return self.expression_statement()
 
     def print_statement(self) -> Stmt:
@@ -92,7 +96,11 @@ class Parser:
 
     def while_(self) -> Stmt:
         cond = self.parse_condition()
-        body = self.statement()
+        try:
+            self.loop_depth += 1
+            body = self.statement()
+        finally:
+            self.loop_depth -= 1
         return While(cond, body)
 
     def for_(self) -> Stmt:
@@ -110,11 +118,24 @@ class Parser:
         if not self.match(TT.SEMICOLON):
             advancement = self.expression()
         self.consume(TT.RIGHT_PAREN, "Expect parenthses around for header.")
-        body = self.statement()
+        try:
+            self.loop_depth += 1
+            body = self.statement()
+        finally:
+            self.loop_depth -= 1
         if advancement is not None:
             body = Block([body, Expression(advancement)])
         statements.append(While(cond, body))
         return Block(statements)
+
+    def break_(self) -> Stmt:
+        if self.loop_depth == 0:
+            self.error(
+                self.tokens[self.current], "Break is not allowed outside of a loop."
+            )
+            return self.statement()
+        self.consume(TT.SEMICOLON, "Expect semicolon after break.")
+        return Break()
 
     def expression_statement(self) -> Stmt:
         expr = self.expression()

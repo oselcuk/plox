@@ -13,7 +13,7 @@ from lox.expr import (
     Variable,
 )
 from lox.scanner import Token, TokenType as TT
-from lox.stmt import Block, Expression, If, Print, Stmt, StmtVisitor, Var, While
+from lox.stmt import Block, Expression, Break, If, Print, Stmt, StmtVisitor, Var, While
 from lox.value import LoxObject, LoxValue
 
 
@@ -27,6 +27,10 @@ class LoxArithmeticError(LoxRuntimeError):
     def __init__(self, expr: Expr, message: str):
         self.expr = expr
         super().__init__(message)
+
+
+class BreakLoop(Exception):
+    pass
 
 
 class LoxTypeError(LoxRuntimeError):
@@ -112,8 +116,18 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
             stmt.else_branch.accept(self)
 
     def visit_while(self, stmt: While) -> None:
-        while LoxObject(stmt.conditional.accept(self)).is_truthy():
-            stmt.body.accept(self)
+        # FUTURE: continue is harder to implement since we need to
+        # differentiate between the body and the advancement part of the
+        # header, and run the latter after a continue. We currently have no
+        # mechanism to do that, so that's left as an exercise for the future.
+        try:
+            while LoxObject(stmt.conditional.accept(self)).is_truthy():
+                stmt.body.accept(self)
+        except BreakLoop:
+            pass
+
+    def visit_break(self, stmt: Break) -> None:
+        raise BreakLoop()
 
     def evaluate_expr(self, expr: Expr) -> LoxValue:
         try:

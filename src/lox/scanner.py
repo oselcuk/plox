@@ -23,29 +23,30 @@ TokenType = Enum("TokenType", [
     "IDENTIFIER", "STRING", "NUMBER",
 
     # Keywords.
-    "AND", "CLASS", "ELSE", "FALSE", "FUN", "FOR", "IF", "NIL", "OR",
+    "AND", "BREAK", "CLASS", "ELSE", "FALSE", "FUN", "FOR", "IF", "NIL", "OR",
     "PRINT", "RETURN", "SUPER", "THIS", "TRUE", "VAR", "WHILE",
 
     "EOF"
 ])
 
 keywords = {
-    "and":    TokenType.AND,
-    "class":  TokenType.CLASS,
-    "else":   TokenType.ELSE,
-    "false":  TokenType.FALSE,
-    "for":    TokenType.FOR,
-    "fun":    TokenType.FUN,
-    "if":     TokenType.IF,
-    "nil":    TokenType.NIL,
-    "or":     TokenType.OR,
-    "print":  TokenType.PRINT,
-    "return": TokenType.RETURN,
-    "super":  TokenType.SUPER,
-    "this":   TokenType.THIS,
-    "true":   TokenType.TRUE,
-    "var":    TokenType.VAR,
-    "while":  TokenType.WHILE,
+    "and":      TokenType.AND,
+    "break":    TokenType.BREAK,
+    "class":    TokenType.CLASS,
+    "else":     TokenType.ELSE,
+    "false":    TokenType.FALSE,
+    "for":      TokenType.FOR,
+    "fun":      TokenType.FUN,
+    "if":       TokenType.IF,
+    "nil":      TokenType.NIL,
+    "or":       TokenType.OR,
+    "print":    TokenType.PRINT,
+    "return":   TokenType.RETURN,
+    "super":    TokenType.SUPER,
+    "this":     TokenType.THIS,
+    "true":     TokenType.TRUE,
+    "var":      TokenType.VAR,
+    "while":    TokenType.WHILE,
 }
 # fmt: on
 

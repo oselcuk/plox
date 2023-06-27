@@ -10,7 +10,7 @@ from lox.expr import (
     Variable,
     Assign,
 )
-from lox.stmt import Block, Expression, If, Print, Stmt, StmtVisitor, Var, While
+from lox.stmt import Block, Expression, Break, If, Print, Stmt, StmtVisitor, Var, While
 
 
 class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
@@ -72,3 +72,6 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
         if stmt.else_branch:
             res += f" else {{ {stmt.else_branch.accept(self)} }}"
         return res
+
+    def visit_break(self, stmt: Break) -> str:
+        return "break"

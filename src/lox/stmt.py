@@ -27,6 +27,9 @@ class StmtVisitor(Protocol[T_co]):
     def visit_while(self, stmt: "While") -> T_co:
         ...
 
+    def visit_break(self, stmt: "Break") -> T_co:
+        ...
+
 
 @dataclass(frozen=True)
 class Stmt:
@@ -69,3 +72,8 @@ class If(Stmt):
 class While(Stmt):
     conditional: Expr
     body: Stmt
+
+
+@dataclass(frozen=True)
+class Break(Stmt):
+    pass
