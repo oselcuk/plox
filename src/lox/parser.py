@@ -14,7 +14,7 @@ from lox.expr import (
 )
 from lox.scanner import Token
 from lox.scanner import TokenType as TT
-from lox.stmt import Block, Expression, Break, If, Print, Stmt, Var, While
+from lox.stmt import Block, Expression, Break, Function, If, Print, Stmt, Var, While
 
 ErrorReporterType = Callable[[int, str, str], None]
 
@@ -48,6 +48,8 @@ class Parser:
         try:
             if self.match(TT.VAR):
                 return self.var_declaration()
+            if self.match(TT.FUN):
+                return self.fun_declaration("function")
             return self.statement()
         except LoxParseError as error:
             print(error)
@@ -62,6 +64,22 @@ class Parser:
         self.consume(TT.SEMICOLON, "Expect semicolon after var declaration.")
         return Var(name, initializer)
 
+    def fun_declaration(self, kind: str) -> Stmt:
+        name = self.consume(TT.IDENTIFIER, f"Expect {kind} name.")
+        self.consume(TT.LEFT_PAREN, f"Expect parenthses around {kind} parameters.")
+        params: list[Token] = []
+        if not self.match(TT.RIGHT_PAREN):
+            params.append(self.consume(TT.IDENTIFIER, "Expect parameters."))
+            while not self.match(TT.RIGHT_PAREN):
+                if len(params) >= 255:
+                    self.error(
+                        self.peek(), f"{kind}s cannot have more than 255 parameters."
+                    )
+                self.consume(TT.COMMA, "Expect commas between parameters.")
+                params.append(self.consume(TT.IDENTIFIER, "Expect parameters."))
+        self.consume(TT.LEFT_BRACE, f"Expect braces around {kind} body.")
+        return Function(name, params, self.block_statement())
+
     def statement(self) -> Stmt:
         if self.match(TT.PRINT):
             return self.print_statement()
@@ -73,7 +91,7 @@ class Parser:
             return self.while_()
         if self.match(TT.FOR):
             return self.for_()
-        if token := self.match(TT.BREAK):
+        if self.match(TT.BREAK):
             return self.break_()
         return self.expression_statement()
 

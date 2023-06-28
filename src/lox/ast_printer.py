@@ -11,7 +11,18 @@ from lox.expr import (
     Variable,
     Assign,
 )
-from lox.stmt import Block, Expression, Break, If, Print, Stmt, StmtVisitor, Var, While
+from lox.stmt import (
+    Block,
+    Expression,
+    Break,
+    Function,
+    If,
+    Print,
+    Stmt,
+    StmtVisitor,
+    Var,
+    While,
+)
 
 
 class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
@@ -79,3 +90,6 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
 
     def visit_break(self, stmt: Break) -> str:
         return "break"
+
+    def visit_function(self, stmt: Function) -> str:
+        return f"<fn {stmt.name.lexeme}>"

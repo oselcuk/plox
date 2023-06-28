@@ -23,10 +23,8 @@ class LoxObject:
         if isinstance(self.val, bool):
             return str(self.val).lower()
         if isinstance(self.val, float):
-            return f"{self.val:g}"
-        if isinstance(self.val, LoxCallable):
-            return "function"
-        return self.val
+            return f"{self.val:f}".rstrip("0").rstrip(".")
+        return str(self.val)
 
     def is_truthy(self) -> bool:
         if self.val is None or self.val is False:

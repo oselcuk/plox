@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+import time
+from typing import TYPE_CHECKING, Callable
 
 from lox.exceptions import LoxError
 from lox.expr import (
@@ -14,7 +16,18 @@ from lox.expr import (
     Variable,
 )
 from lox.scanner import Token, TokenType as TT
-from lox.stmt import Block, Expression, Break, If, Print, Stmt, StmtVisitor, Var, While
+from lox.stmt import (
+    Block,
+    Expression,
+    Break,
+    Function,
+    If,
+    Print,
+    Stmt,
+    StmtVisitor,
+    Var,
+    While,
+)
 from lox.value import LoxCallable, LoxObject, LoxValue
 
 
@@ -72,11 +85,49 @@ class Environment:
             raise LoxRuntimeError(f"Undefined variable {name}.")
 
 
+@dataclass
+class NativeFunction(LoxCallable):
+    arity: int
+    name: str
+    func: Callable[..., LoxValue]
+
+    def call(self, interpreter: "Interpreter", *args: LoxValue) -> LoxValue:
+        return self.func(interpreter, *args)
+
+    def __str__(self) -> str:
+        return f"<native fn {self.name}>"
+
+
+class UserFunction(LoxCallable):
+    arity: int
+    declaration: Function
+
+    def __init__(self, declaration: Function) -> None:
+        self.arity = len(declaration.params)
+        self.declaration = declaration
+
+    def call(self, interpreter: "Interpreter", *args: LoxValue) -> LoxValue:
+        env = Environment(interpreter.globals)
+        for param, arg in zip(self.declaration.params, args):
+            env.define(param.lexeme, arg)
+        interpreter.execute_block(self.declaration.body, env)
+        return None
+
+    def __str__(self) -> str:
+        return f"<fn {self.declaration.name.lexeme}>"
+
+
 class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
+    globals: Environment
     env: Environment
 
     def __init__(self) -> None:
-        self.env = Environment()
+        self.globals = Environment()
+        self.env = self.globals
+        self.globals.define(
+            "clock",
+            NativeFunction(0, "clock", lambda _: time.time()),
+        )
 
     def interpret(self, statements: list[Stmt]):
         for stmt in statements:
@@ -86,6 +137,14 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
         #     return self.evaluate(expr)
         # except LoxRuntimeError as error:
         #     return error
+
+    def execute_block(self, statements: list[Stmt], env: Environment):
+        env_restore = self.env
+        try:
+            self.env = env
+            self.interpret(statements)
+        finally:
+            self.env = env_restore
 
     def visit_expression(self, stmt: Expression) -> None:
         self.evaluate_expr(stmt.expr)
@@ -129,6 +188,9 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
 
     def visit_break(self, stmt: Break) -> None:
         raise BreakLoop()
+
+    def visit_function(self, stmt: Function) -> None:
+        self.env.define(stmt.name.lexeme, UserFunction(stmt))
 
     def evaluate_expr(self, expr: Expr) -> LoxValue:
         try:

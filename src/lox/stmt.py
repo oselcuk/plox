@@ -30,6 +30,9 @@ class StmtVisitor(Protocol[T_co]):
     def visit_break(self, stmt: "Break") -> T_co:
         ...
 
+    def visit_function(self, stmt: "Function") -> T_co:
+        ...
+
 
 @dataclass(frozen=True)
 class Stmt:
@@ -80,5 +83,7 @@ class Break(Stmt):
 
 
 @dataclass(frozen=True)
-class Fun(Stmt):
-    pass
+class Function(Stmt):
+    name: Token
+    params: list[Token]
+    body: list[Stmt]
