@@ -18,6 +18,7 @@ from lox.stmt import (
     Function,
     If,
     Print,
+    Return,
     Stmt,
     StmtVisitor,
     Var,
@@ -92,4 +93,9 @@ class AstPrinter(ExprVisitor[str], StmtVisitor[str]):
         return "break"
 
     def visit_function(self, stmt: Function) -> str:
-        return f"<fn {stmt.name.lexeme}>"
+        name = stmt.name.lexeme
+        params = ", ".join(param.lexeme for param in stmt.params)
+        return f"< fun {name} ({params}) >"
+
+    def visit_return(self, stmt: Return) -> str:
+        return self.parenthesize(stmt.keyword.lexeme, stmt.value)

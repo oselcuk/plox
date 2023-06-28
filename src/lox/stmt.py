@@ -33,6 +33,9 @@ class StmtVisitor(Protocol[T_co]):
     def visit_function(self, stmt: "Function") -> T_co:
         ...
 
+    def visit_return(self, stmt: "Return") -> T_co:
+        ...
+
 
 @dataclass(frozen=True)
 class Stmt:
@@ -87,3 +90,9 @@ class Function(Stmt):
     name: Token
     params: list[Token]
     body: list[Stmt]
+
+
+@dataclass(frozen=True)
+class Return(Stmt):
+    keyword: Token
+    value: Expr

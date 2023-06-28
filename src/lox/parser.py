@@ -14,7 +14,18 @@ from lox.expr import (
 )
 from lox.scanner import Token
 from lox.scanner import TokenType as TT
-from lox.stmt import Block, Expression, Break, Function, If, Print, Stmt, Var, While
+from lox.stmt import (
+    Block,
+    Expression,
+    Break,
+    Function,
+    If,
+    Print,
+    Return,
+    Stmt,
+    Var,
+    While,
+)
 
 ErrorReporterType = Callable[[int, str, str], None]
 
@@ -93,6 +104,8 @@ class Parser:
             return self.for_()
         if self.match(TT.BREAK):
             return self.break_()
+        if token := self.match(TT.RETURN):
+            return self.return_(token)
         return self.expression_statement()
 
     def print_statement(self) -> Stmt:
@@ -164,6 +177,13 @@ class Parser:
             return self.statement()
         self.consume(TT.SEMICOLON, "Expect semicolon after break.")
         return Break()
+
+    def return_(self, token: Token) -> Stmt:
+        value: Expr = Literal(None)
+        if not self.match(TT.SEMICOLON):
+            value = self.expression()
+            self.consume(TT.SEMICOLON, "Expect semicolon after Return.")
+        return Return(token, value)
 
     def expression_statement(self) -> Stmt:
         expr = self.expression()

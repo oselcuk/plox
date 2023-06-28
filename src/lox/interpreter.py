@@ -23,6 +23,7 @@ from lox.stmt import (
     Function,
     If,
     Print,
+    Return,
     Stmt,
     StmtVisitor,
     Var,
@@ -45,6 +46,11 @@ class LoxArithmeticError(LoxRuntimeError):
 
 class BreakLoop(Exception):
     pass
+
+
+@dataclass
+class ReturnException(Exception):
+    val: LoxValue
 
 
 class LoxTypeError(LoxRuntimeError):
@@ -91,7 +97,7 @@ class NativeFunction(LoxCallable):
     name: str
     func: Callable[..., LoxValue]
 
-    def call(self, interpreter: "Interpreter", *args: LoxValue) -> LoxValue:
+    def call(self, interpreter: "Interpreter", args: list[LoxValue]) -> LoxValue:
         return self.func(interpreter, *args)
 
     def __str__(self) -> str:
@@ -101,17 +107,21 @@ class NativeFunction(LoxCallable):
 class UserFunction(LoxCallable):
     arity: int
     declaration: Function
+    closure: Environment
 
-    def __init__(self, declaration: Function) -> None:
+    def __init__(self, declaration: Function, closure: Environment) -> None:
         self.arity = len(declaration.params)
         self.declaration = declaration
+        self.closure = closure
 
-    def call(self, interpreter: "Interpreter", *args: LoxValue) -> LoxValue:
-        env = Environment(interpreter.globals)
+    def call(self, interpreter: "Interpreter", args: list[LoxValue]) -> LoxValue:
+        env = Environment(self.closure)
         for param, arg in zip(self.declaration.params, args):
             env.define(param.lexeme, arg)
-        interpreter.execute_block(self.declaration.body, env)
-        return None
+        try:
+            return interpreter.execute_block(self.declaration.body, env)
+        except ReturnException as ret:
+            return ret.val
 
     def __str__(self) -> str:
         return f"<fn {self.declaration.name.lexeme}>"
@@ -190,7 +200,10 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
         raise BreakLoop()
 
     def visit_function(self, stmt: Function) -> None:
-        self.env.define(stmt.name.lexeme, UserFunction(stmt))
+        self.env.define(stmt.name.lexeme, UserFunction(stmt, self.env))
+
+    def visit_return(self, stmt: Return) -> None:
+        raise ReturnException(stmt.value.accept(self))
 
     def evaluate_expr(self, expr: Expr) -> LoxValue:
         try:
@@ -288,7 +301,7 @@ class Interpreter(ExprVisitor[LoxValue], StmtVisitor[None]):
             raise LoxRuntimeError(
                 f"Expected {func.arity} arguments, got {len(arguments)}."
             )
-        return func.call(self, *arguments)
+        return func.call(self, arguments)
 
     def check_types(self, token: Token, typ: type, message: str, *values: LoxValue):
         if not all(isinstance(val, typ) for val in values):

@@ -6,7 +6,7 @@ from typing import Any, Protocol, runtime_checkable
 class LoxCallable(Protocol):
     arity: int
 
-    def call(self, interpreter: Any, *args) -> "LoxValue":
+    def call(self, interpreter: Any, args: "list[LoxValue]") -> "LoxValue":
         pass
 
 
