@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Protocol, TypeVar
 
-from lox.scanner import Token
-from lox.value import LoxValue
+from lox import scanner
+from lox import value
 
 
 T_co = TypeVar("T_co", covariant=True)
@@ -34,7 +34,7 @@ class ExprVisitor(Protocol[T_co]):
         ...
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Expr:
     def accept(self, visitor: ExprVisitor[T_co]) -> T_co:
         visit_method = f"visit_{self.__class__.__name__.lower()}"
@@ -43,49 +43,49 @@ class Expr:
         raise NotImplementedError(f"{visit_method} not implemented on {visitor}")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Binary(Expr):
     left: Expr
-    operator: Token
+    operator: scanner.Token
     right: Expr
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Grouping(Expr):
     expr: Expr
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Literal(Expr):
-    value: LoxValue
+    value: value.LoxValue
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Unary(Expr):
-    operator: Token
+    operator: scanner.Token
     right: Expr
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Variable(Expr):
-    name: Token
+    name: scanner.Token
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Assign(Expr):
-    name: Token
+    name: scanner.Token
     value: Expr
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Logical(Expr):
     left: Expr
-    operator: Token
+    operator: scanner.Token
     right: Expr
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Call(Expr):
     callee: Expr
-    paren: Token
+    paren: scanner.Token
     arguments: list[Expr]

@@ -1,3 +1,6 @@
+# This file is quarantined because I don't want to deal with updating it at this point.
+# It's nice though, would be good to make it work again, and make it nicer.
+
 from typing import Sequence
 from lox.expr import (
     Binary,

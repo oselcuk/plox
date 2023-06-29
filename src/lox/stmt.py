@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Protocol, TypeVar
 
-from lox.expr import Expr
-from lox.scanner import Token
+from lox import expr
+from lox import scanner
 
 
 T_co = TypeVar("T_co", covariant=True)
@@ -37,7 +37,7 @@ class StmtVisitor(Protocol[T_co]):
         ...
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Stmt:
     def accept(self, visitor: StmtVisitor[T_co]) -> T_co:
         visit_method = f"visit_{self.__class__.__name__.lower()}"
@@ -46,53 +46,53 @@ class Stmt:
         raise NotImplementedError(f"{visit_method} not implemented on {visitor}")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Expression(Stmt):
-    expr: Expr
+    expr: expr.Expr
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Print(Stmt):
-    expr: Expr
+    expr: expr.Expr
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Var(Stmt):
-    name: Token
-    initializer: Expr | None
+    name: scanner.Token
+    initializer: expr.Expr | None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Block(Stmt):
     statements: list[Stmt]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class If(Stmt):
-    conditional: Expr
+    conditional: expr.Expr
     then_branch: Stmt
     else_branch: Stmt | None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class While(Stmt):
-    conditional: Expr
+    conditional: expr.Expr
     body: Stmt
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Break(Stmt):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Function(Stmt):
-    name: Token
-    params: list[Token]
+    name: scanner.Token
+    params: list[scanner.Token]
     body: list[Stmt]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Return(Stmt):
-    keyword: Token
-    value: Expr
+    keyword: scanner.Token
+    value: expr.Expr

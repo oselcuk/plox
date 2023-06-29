@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
 
-from lox.value import LoxValue
+from lox import lox
+from lox import value
 
 # fmt: off
 TokenType = Enum("TokenType", [
@@ -51,11 +52,11 @@ keywords = {
 # fmt: on
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Token:
     typ: TokenType
     lexeme: str
-    literal: LoxValue
+    literal: value.LoxValue
     line: int
 
     def __str__(self):
@@ -65,27 +66,27 @@ class Token:
 class Scanner:
     source: str
     tokens: list[Token]
+    lox_instance: "lox.Lox"
 
-    errors: list[str]
     start: int = 0
     current: int = 0
     line: int = 1
 
-    def __init__(self, source: str):
+    def __init__(self, lox_instance: "lox.Lox", source: str):
+        self.lox_instance = lox_instance
         self.source = source
         self.tokens = []
-        self.errors = []
 
     def is_at_end(self) -> bool:
         return self.current >= len(self.source)
 
-    def scan_tokens(self) -> tuple[list[Token], list[str]]:
+    def scan_tokens(self) -> list[Token]:
         while not self.is_at_end():
             self.start = self.current
             self.scan_token()
 
         self.tokens.append(Token(TokenType.EOF, "", None, self.line))
-        return (self.tokens, self.errors)
+        return self.tokens
 
     def peek(self) -> Optional[str]:
         """
@@ -149,13 +150,13 @@ class Scanner:
         self.advance()
 
         # Trim the quotes.
-        value = self.source[self.start + 1 : self.current - 1]
+        val = self.source[self.start + 1 : self.current - 1]
 
         # Cheating a bit by having python evaluate escape sequences.
         # Note the triple quotes, needed for multiline strings, which lox supports.
-        value = ast.literal_eval(f'"""{value}"""')
+        val = ast.literal_eval(f'"""{val}"""')
 
-        self.add_token(TokenType.STRING, value)
+        self.add_token(TokenType.STRING, val)
 
     def number(self):
         while (p := self.peek()) and p.isdigit():
@@ -164,8 +165,8 @@ class Scanner:
             self.advance()
             while (p := self.peek()) and p.isdigit():
                 self.advance()
-        value = float(self.source[self.start : self.current])
-        self.add_token(TokenType.NUMBER, value)
+        val = float(self.source[self.start : self.current])
+        self.add_token(TokenType.NUMBER, val)
 
     def identifier(self):
         while (p := self.peek()) and p.isalnum() or p == "_":
@@ -237,4 +238,4 @@ class Scanner:
                 self.report_error(f"Unexpected character {c}")
 
     def report_error(self, message: str):
-        self.errors.append(f"[line {self.line}]: {message}")
+        self.lox_instance.error_line(self.line, message)

@@ -1,19 +1,23 @@
 from dataclasses import dataclass
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
+
+from lox import interpreter
 
 
 @runtime_checkable
 class LoxCallable(Protocol):
     arity: int
 
-    def call(self, interpreter: Any, args: "list[LoxValue]") -> "LoxValue":
+    def call(
+        self, intr: "interpreter.Interpreter", args: "list[LoxValue]"
+    ) -> "LoxValue":
         pass
 
 
 LoxValue = None | bool | float | str | LoxCallable
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class LoxObject:
     val: LoxValue
 

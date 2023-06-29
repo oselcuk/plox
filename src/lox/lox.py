@@ -1,11 +1,91 @@
 import sys
+import traceback
 
-from lox.ast_printer import AstPrinter
-from lox.exceptions import LoxError
-from lox.interpreter import Interpreter
-from lox.parser import Parser
-from lox.scanner import Scanner
-from lox.stmt import Stmt
+# from lox import ast_printer
+from lox import interpreter
+from lox import parser
+from lox import resolver
+from lox import scanner
+from lox import stmt
+
+
+class Lox:
+    intr: interpreter.Interpreter
+    had_error: bool = False
+    had_runtime_error: bool = False
+
+    def __init__(self):
+        self.intr = interpreter.Interpreter(self)
+
+    def run_file(self, path: str):
+        source: str
+        with open(path, encoding="utf-8") as source_file:
+            source = source_file.read()
+        self.run(source)
+        if self.had_error:
+            sys.exit(65)
+        if self.had_runtime_error:
+            sys.exit(70)
+
+    def run_prompt(self):
+        while True:
+            try:
+                line = input(">>> ")
+                self.run(line)
+                self.had_error = False
+            except EOFError:
+                break
+
+    def run(self, source: str):
+        scan = scanner.Scanner(self, source)
+        tokens = scan.scan_tokens()
+
+        # self.debug("Parsed tokens:")
+        # for token in tokens:
+        #     self.debug(token)
+        # self.debug()
+
+        parse = parser.Parser(self, tokens)
+        statements: list[stmt.Stmt] = parse.parse()
+
+        # self.debug("Parsed expression:")
+        # self.debug(ast_printer.AstPrinter().print(statements))
+        # self.debug()
+
+        if self.had_error:
+            return
+
+        resolver.Resolver(self.intr).resolve_statements(statements)
+        self.debug(f"Resolver:")
+        for k, v in self.intr.locals.items():
+            self.debug(f"{k}: {v}")
+        if self.had_error:
+            return
+        self.intr.interpret(statements)
+
+    def error_line(self, line: int, message: str):
+        self.report(line, "", message)
+
+    def error(self, token: scanner.Token, message: str):
+        if token.typ == scanner.TokenType.EOF:
+            self.report(token.line, "at end", message)
+        else:
+            self.report(token.line, f"at '{token.lexeme}'", message)
+
+    def report(self, line: int, where: str, message: str):
+        if where:
+            where = " " + where
+        print(f"[line {line}] Error{where}: {message}", file=sys.stderr)
+        self.had_error = True
+
+    def runtime_error(self, error: interpreter.LoxRuntimeError):
+        print(f"{error}\n[line {error.token.line}]", file=sys.stderr)
+        for line in traceback.format_exception(error):
+            self.debug(line)
+        self.had_runtime_error = True
+
+    def debug(self, *args, **kwargs):
+        print(*args, **kwargs, file=sys.stderr)
 
 
 def main():
@@ -13,56 +93,9 @@ def main():
         print("Usage: plox [script]")
         sys.exit(64)
     if len(sys.argv) == 2:
-        run_file(sys.argv[1])
+        Lox().run_file(sys.argv[1])
     else:
-        run_prompt()
-
-
-def run_file(path: str):
-    source: str
-    with open(path, encoding="utf-8") as source_file:
-        source = source_file.read()
-    try:
-        run(Interpreter(), source)
-    except LoxError as error:
-        print(error)
-        sys.exit(65)
-
-
-def run_prompt():
-    interpreter = Interpreter()
-    while True:
-        try:
-            run(interpreter, input("> "))
-        except LoxError as error:
-            print(error)
-        except EOFError:
-            break
-
-
-def run(interpreter: Interpreter, source: str):
-    scanner = Scanner(source)
-    tokens, errors = scanner.scan_tokens()
-    # FUTURE: Should this raise instead? Does it make sense to continue
-    # to parsing if scanning failed?
-    if errors:
-        print("Errors encountered during scanning:", file=sys.stderr)
-        for error in errors:
-            print(error)
-
-    print("Parsed tokens:", file=sys.stderr)
-    for token in tokens:
-        print(token, file=sys.stderr)
-    print(file=sys.stderr)
-
-    parser = Parser(tokens)
-    expr: list[Stmt] = parser.parse()
-
-    print("Parsed expression:", file=sys.stderr)
-    print(AstPrinter().print(expr), file=sys.stderr)
-    print(file=sys.stderr)
-
-    interpreter.interpret(expr)
+        Lox().run_prompt()
 
 
 if __name__ == "__main__":
