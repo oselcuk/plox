@@ -130,6 +130,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def end_scope(self):
         for variable, state in self.scopes.pop().items():
             if state in (VariableState.DECLARED, VariableState.DEFINED):
+                # FUTURE: Store identifier token and frame number for variables.
                 token = Token(TokenType.IDENTIFIER, variable, None, 0)
                 self.error(token, f"Unused variable {variable}.")
 

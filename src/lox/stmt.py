@@ -96,3 +96,9 @@ class Function(Stmt):
 class Return(Stmt):
     keyword: scanner.Token
     value: expr.Expr
+
+
+@dataclass(frozen=True, eq=False)
+class Class(Stmt):
+    name: scanner.Token
+    methods: list[Function]

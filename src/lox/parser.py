@@ -40,6 +40,8 @@ class Parser:
                 return self.var_declaration()
             if self.match(TT.FUN):
                 return self.fun_declaration("function")
+            if self.match(lox.scanner.TokenType.CLASS):
+                return self.class_declaration()
             return self.statement()
         except LoxParseError:
             self.synchronize()
@@ -71,6 +73,12 @@ class Parser:
                 params.append(self.consume(TT.IDENTIFIER, "Expect parameters."))
         self.consume(TT.LEFT_BRACE, f"Expect braces around {kind} body.")
         return lox.stmt.Function(name, params, self.block_statement())
+
+    def class_declaration(self) -> lox.stmt.Stmt:
+        name = self.consume(lox.scanner.TokenType.IDENTIFIER, "Expect class name.")
+        self.consume(
+            lox.scanner.TokenType.LEFT_BRACE,
+        )
 
     def statement(self) -> lox.stmt.Stmt:
         if self.match(TT.PRINT):
