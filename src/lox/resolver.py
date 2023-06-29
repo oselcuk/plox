@@ -12,7 +12,7 @@ from lox.expr import (
     Variable,
 )
 from lox.interpreter import Interpreter
-from lox.scanner import Token
+from lox.scanner import Token, TokenType
 from lox.stmt import (
     Block,
     Break,
@@ -33,9 +33,16 @@ class FunctionType(Enum):
     FUNCTION = auto()
 
 
+class VariableState(Enum):
+    NONE = auto()
+    DECLARED = auto()
+    DEFINED = auto()
+    USED = auto()
+
+
 class Resolver(ExprVisitor[None], StmtVisitor[None]):
     interpreter: Interpreter
-    scopes: list[dict[str, bool]]
+    scopes: list[dict[str, VariableState]]
     current_function: FunctionType = FunctionType.NONE
     loop_depth: int = 0
 
@@ -54,54 +61,64 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
 
     def visit_var(self, stmt: Var) -> None:
         self.declare(stmt.name)
-        self.resolve(stmt.initializer)
-        self.define(stmt.name)
+        if stmt.initializer is not None:
+            self.resolve(stmt.initializer)
+            self.define(stmt.name)
 
     def visit_variable(self, expr: Variable) -> None:
-        if self.scopes and not self.scopes[-1].get(expr.name.lexeme, True):
-            self.error(expr.name, "Can't read local variable in its own initializer.")
-        self.resolve_local(expr, expr.name)
+        self.resolve_local(expr, expr.name, True)
 
-    def resolve_local(self, expr: Expr, name: Token):
+    def resolve_local(self, expr: Expr, name: Token, read: bool):
+        """
+        Resolve local variable. `read` should be True if the variable is being read,
+        False otherwise.
+        """
         for steps, scope in enumerate(reversed(self.scopes)):
-            if name.lexeme in scope:
-                print(f"Resolved {expr} at {steps}")
+            if (state := scope.get(name.lexeme, None)) is not None:
+                match (read, state):
+                    case (True, VariableState.DECLARED):
+                        self.error(name, "Variable used before assignment.")
+                    case (True, VariableState.DEFINED):
+                        scope[name.lexeme] = VariableState.USED
+                    case (False, VariableState.DECLARED):
+                        scope[name.lexeme] = VariableState.DEFINED
+
                 self.interpreter.resolve(expr, steps)
                 break
 
     def visit_assign(self, expr: Assign) -> None:
         self.resolve(expr.value)
-        self.resolve_local(expr, expr.name)
+        self.resolve_local(expr, expr.name, False)
 
     def visit_function(self, stmt: Function) -> None:
         self.declare(stmt.name)
         self.define(stmt.name)
 
-        loop_depth = self.loop_depth
-        self.loop_depth = 0
         self.resolve_function(stmt, FunctionType.FUNCTION)
-        self.loop_depth = loop_depth
 
     def resolve_function(self, func: Function, typ: FunctionType):
         restore = self.current_function
         self.current_function = typ
+        loop_depth = self.loop_depth
+        self.loop_depth = 0
         self.begin_scope()
         for param in func.params:
             self.declare(param)
             self.define(param)
         self.resolve_statements(func.body)
         self.end_scope()
+        self.loop_depth = loop_depth
         self.current_function = restore
 
     def declare(self, name: Token):
         if self.scopes:
             if name.lexeme in self.scopes[-1]:
                 self.error(name, "Variable already declared in this scope.")
-            self.scopes[-1][name.lexeme] = False
+            self.scopes[-1][name.lexeme] = VariableState.DECLARED
 
     def define(self, name: Token):
         if self.scopes:
-            self.scopes[-1][name.lexeme] = True
+            self.scopes[-1][name.lexeme] = VariableState.DEFINED
 
     def resolve(self, node: Stmt | Expr | None):
         if node is not None:
@@ -111,7 +128,10 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self.scopes.append({})
 
     def end_scope(self):
-        self.scopes.pop()
+        for variable, state in self.scopes.pop().items():
+            if state in (VariableState.DECLARED, VariableState.DEFINED):
+                token = Token(TokenType.IDENTIFIER, variable, None, 0)
+                self.error(token, f"Unused variable {variable}.")
 
     def visit_expression(self, stmt: Expression) -> None:
         self.resolve(stmt.expr)
