@@ -6,6 +6,9 @@ import lox.scanner
 import lox.stmt
 
 
+TT = lox.scanner.TokenType
+
+
 class LoxParseError(Exception):
     pass
 
@@ -26,16 +29,16 @@ class Parser:
 
     def program(self) -> list[lox.stmt.Stmt]:
         statements: list[lox.stmt.Stmt] = []
-        while not self.match(lox.scanner.TokenType.EOF):
+        while not self.match(TT.EOF):
             if stmt := self.declaration():
                 statements.append(stmt)
         return statements
 
     def declaration(self) -> Optional[lox.stmt.Stmt]:
         try:
-            if self.match(lox.scanner.TokenType.VAR):
+            if self.match(TT.VAR):
                 return self.var_declaration()
-            if self.match(lox.scanner.TokenType.FUN):
+            if self.match(TT.FUN):
                 return self.fun_declaration("function")
             return self.statement()
         except LoxParseError:
@@ -43,94 +46,73 @@ class Parser:
             return None
 
     def var_declaration(self) -> lox.stmt.Stmt:
-        name = self.consume(
-            lox.scanner.TokenType.IDENTIFIER, "Expect identifier after 'var'."
-        )
+        name = self.consume(TT.IDENTIFIER, "Expect identifier after 'var'.")
         initializer: Optional[lox.expr.Expr] = None
-        if self.match(lox.scanner.TokenType.EQUAL):
+        if self.match(TT.EQUAL):
             initializer = self.expression()
-        self.consume(
-            lox.scanner.TokenType.SEMICOLON, "Expect semicolon after var declaration."
-        )
+        self.consume(TT.SEMICOLON, "Expect semicolon after var declaration.")
         return lox.stmt.Var(name, initializer)
 
     def fun_declaration(self, kind: str) -> lox.stmt.Stmt:
-        name = self.consume(lox.scanner.TokenType.IDENTIFIER, f"Expect {kind} name.")
+        name = self.consume(TT.IDENTIFIER, f"Expect {kind} name.")
         self.consume(
-            lox.scanner.TokenType.LEFT_PAREN,
+            TT.LEFT_PAREN,
             f"Expect parenthses around {kind} parameters.",
         )
         params: list[lox.scanner.Token] = []
-        if not self.match(lox.scanner.TokenType.RIGHT_PAREN):
-            params.append(
-                self.consume(lox.scanner.TokenType.IDENTIFIER, "Expect parameters.")
-            )
-            while not self.match(lox.scanner.TokenType.RIGHT_PAREN):
+        if not self.match(TT.RIGHT_PAREN):
+            params.append(self.consume(TT.IDENTIFIER, "Expect parameters."))
+            while not self.match(TT.RIGHT_PAREN):
                 if len(params) >= 255:
                     self.error(
                         self.peek(), f"{kind}s cannot have more than 255 parameters."
                     )
-                self.consume(
-                    lox.scanner.TokenType.COMMA, "Expect commas between parameters."
-                )
-                params.append(
-                    self.consume(lox.scanner.TokenType.IDENTIFIER, "Expect parameters.")
-                )
-        self.consume(
-            lox.scanner.TokenType.LEFT_BRACE, f"Expect braces around {kind} body."
-        )
+                self.consume(TT.COMMA, "Expect commas between parameters.")
+                params.append(self.consume(TT.IDENTIFIER, "Expect parameters."))
+        self.consume(TT.LEFT_BRACE, f"Expect braces around {kind} body.")
         return lox.stmt.Function(name, params, self.block_statement())
 
     def statement(self) -> lox.stmt.Stmt:
-        if self.match(lox.scanner.TokenType.PRINT):
+        if self.match(TT.PRINT):
             return self.print_statement()
-        if self.match(lox.scanner.TokenType.LEFT_BRACE):
+        if self.match(TT.LEFT_BRACE):
             return lox.stmt.Block(self.block_statement())
-        if self.match(lox.scanner.TokenType.IF):
+        if self.match(TT.IF):
             return self.if_statement()
-        if self.match(lox.scanner.TokenType.WHILE):
+        if self.match(TT.WHILE):
             return self.while_()
-        if self.match(lox.scanner.TokenType.FOR):
+        if self.match(TT.FOR):
             return self.for_()
-        if token := self.match(lox.scanner.TokenType.BREAK):
+        if token := self.match(TT.BREAK):
             return self.break_(token)
-        if token := self.match(lox.scanner.TokenType.RETURN):
+        if token := self.match(TT.RETURN):
             return self.return_(token)
         return self.expression_statement()
 
     def print_statement(self) -> lox.stmt.Stmt:
         expr = self.expression()
-        self.consume(lox.scanner.TokenType.SEMICOLON, "Expect semicolon after value.")
+        self.consume(TT.SEMICOLON, "Expect semicolon after value.")
         return lox.stmt.Print(expr)
 
     def block_statement(self) -> list[lox.stmt.Stmt]:
         statements: list[lox.stmt.Stmt] = []
-        while (
-            self.peek().typ != lox.scanner.TokenType.RIGHT_BRACE
-            and not self.is_at_end()
-        ):
+        while self.peek().typ != TT.RIGHT_BRACE and not self.is_at_end():
             if stmt := self.declaration():
                 statements.append(stmt)
-        self.consume(
-            lox.scanner.TokenType.RIGHT_BRACE, "Expect closing brace after block."
-        )
+        self.consume(TT.RIGHT_BRACE, "Expect closing brace after block.")
         return statements
 
     def parse_condition(self) -> lox.expr.Expr:
-        self.consume(
-            lox.scanner.TokenType.LEFT_PAREN, "Expect parenthses around condition."
-        )
+        self.consume(TT.LEFT_PAREN, "Expect parenthses around condition.")
         cond = self.expression()
-        self.consume(
-            lox.scanner.TokenType.RIGHT_PAREN, "Expect parenthses around condition."
-        )
+        self.consume(TT.RIGHT_PAREN, "Expect parenthses around condition.")
         return cond
 
     def if_statement(self) -> lox.stmt.Stmt:
         cond = self.parse_condition()
         then = self.statement()
         else_: lox.stmt.Stmt | None = None
-        if self.match(lox.scanner.TokenType.ELSE):
+        if self.match(TT.ELSE):
             else_ = self.statement()
         return lox.stmt.If(cond, then, else_)
 
@@ -140,26 +122,20 @@ class Parser:
         return lox.stmt.While(cond, body)
 
     def for_(self) -> lox.stmt.Stmt:
-        self.consume(
-            lox.scanner.TokenType.LEFT_PAREN, "Expect parenthses around for header."
-        )
+        self.consume(TT.LEFT_PAREN, "Expect parenthses around for header.")
         statements: list[lox.stmt.Stmt] = []
-        if self.match(lox.scanner.TokenType.VAR):
+        if self.match(TT.VAR):
             statements.append(self.var_declaration())
-        elif not self.match(lox.scanner.TokenType.SEMICOLON):
+        elif not self.match(TT.SEMICOLON):
             statements.append(self.expression_statement())
         cond: lox.expr.Expr = lox.expr.Literal(True)
-        if not self.match(lox.scanner.TokenType.SEMICOLON):
+        if not self.match(TT.SEMICOLON):
             cond = self.expression()
-        self.consume(
-            lox.scanner.TokenType.SEMICOLON, "Expect semicolon after for condition."
-        )
+        self.consume(TT.SEMICOLON, "Expect semicolon after for condition.")
         advancement: lox.expr.Expr | None = None
-        if not self.match(lox.scanner.TokenType.SEMICOLON):
+        if not self.match(TT.SEMICOLON):
             advancement = self.expression()
-        self.consume(
-            lox.scanner.TokenType.RIGHT_PAREN, "Expect parenthses around for header."
-        )
+        self.consume(TT.RIGHT_PAREN, "Expect parenthses around for header.")
         body = self.statement()
         if advancement is not None:
             body = lox.stmt.Block([body, lox.stmt.Expression(advancement)])
@@ -167,23 +143,19 @@ class Parser:
         return lox.stmt.Block(statements)
 
     def break_(self, token: lox.scanner.Token) -> lox.stmt.Stmt:
-        self.consume(lox.scanner.TokenType.SEMICOLON, "Expect semicolon after break.")
+        self.consume(TT.SEMICOLON, "Expect semicolon after break.")
         return lox.stmt.Break(token)
 
     def return_(self, token: lox.scanner.Token) -> lox.stmt.Stmt:
         value: lox.expr.Expr = lox.expr.Literal(None)
-        if not self.match(lox.scanner.TokenType.SEMICOLON):
+        if not self.match(TT.SEMICOLON):
             value = self.expression()
-            self.consume(
-                lox.scanner.TokenType.SEMICOLON, "Expect semicolon after Return."
-            )
+            self.consume(TT.SEMICOLON, "Expect semicolon after Return.")
         return lox.stmt.Return(token, value)
 
     def expression_statement(self) -> lox.stmt.Stmt:
         expr = self.expression()
-        self.consume(
-            lox.scanner.TokenType.SEMICOLON, "Expect semicolon after statement."
-        )
+        self.consume(TT.SEMICOLON, "Expect semicolon after statement.")
         return lox.stmt.Expression(expr)
 
     def expression(self) -> lox.expr.Expr:
@@ -191,7 +163,7 @@ class Parser:
 
     def assignment(self) -> lox.expr.Expr:
         expr = self.or_()
-        if equals := self.match(lox.scanner.TokenType.EQUAL):
+        if equals := self.match(TT.EQUAL):
             value = self.assignment()
             if isinstance(expr, lox.expr.Variable):
                 return lox.expr.Assign(expr.name, value)
@@ -200,88 +172,80 @@ class Parser:
 
     def or_(self) -> lox.expr.Expr:
         expr = self.and_()
-        while operator := self.match(lox.scanner.TokenType.OR):
+        while operator := self.match(TT.OR):
             expr = lox.expr.Logical(expr, operator, self.and_())
         return expr
 
     def and_(self) -> lox.expr.Expr:
         expr = self.equality()
-        while operator := self.match(lox.scanner.TokenType.AND):
+        while operator := self.match(TT.AND):
             expr = lox.expr.Logical(expr, operator, self.equality())
         return expr
 
     def equality(self) -> lox.expr.Expr:
         return self.parse_binary_operation(
             self.comparison,
-            lox.scanner.TokenType.BANG_EQUAL,
-            lox.scanner.TokenType.EQUAL_EQUAL,
+            TT.BANG_EQUAL,
+            TT.EQUAL_EQUAL,
         )
 
     def comparison(self) -> lox.expr.Expr:
         return self.parse_binary_operation(
             self.term,
-            lox.scanner.TokenType.GREATER,
-            lox.scanner.TokenType.GREATER_EQUAL,
-            lox.scanner.TokenType.LESS,
-            lox.scanner.TokenType.LESS_EQUAL,
+            TT.GREATER,
+            TT.GREATER_EQUAL,
+            TT.LESS,
+            TT.LESS_EQUAL,
         )
 
     def term(self) -> lox.expr.Expr:
-        return self.parse_binary_operation(
-            self.factor, lox.scanner.TokenType.PLUS, lox.scanner.TokenType.MINUS
-        )
+        return self.parse_binary_operation(self.factor, TT.PLUS, TT.MINUS)
 
     def factor(self) -> lox.expr.Expr:
-        return self.parse_binary_operation(
-            self.unary, lox.scanner.TokenType.STAR, lox.scanner.TokenType.SLASH
-        )
+        return self.parse_binary_operation(self.unary, TT.STAR, TT.SLASH)
 
     def unary(self) -> lox.expr.Expr:
-        if tok := self.match(lox.scanner.TokenType.BANG, lox.scanner.TokenType.MINUS):
+        if tok := self.match(TT.BANG, TT.MINUS):
             return lox.expr.Unary(tok, self.unary())
         return self.call()
 
     def call(self) -> lox.expr.Expr:
         expr = self.primary()
-        while (paren := self.match(lox.scanner.TokenType.LEFT_PAREN)) is not None:
+        while (paren := self.match(TT.LEFT_PAREN)) is not None:
             arguments = self.arguments()
             expr = lox.expr.Call(expr, paren, arguments)
         return expr
 
     def arguments(self) -> list[lox.expr.Expr]:
-        if self.match(lox.scanner.TokenType.RIGHT_PAREN):
+        if self.match(TT.RIGHT_PAREN):
             return []
         args: list[lox.expr.Expr] = [self.expression()]
-        while not self.match(lox.scanner.TokenType.RIGHT_PAREN):
-            self.consume(lox.scanner.TokenType.COMMA, "Expect comma between args.")
+        while not self.match(TT.RIGHT_PAREN):
+            self.consume(TT.COMMA, "Expect comma between args.")
             if len(args) >= 255:
                 self.error(self.peek(), "Can't have more than 255 arguments.")
             args.append(self.expression())
         return args
 
     def primary(self) -> lox.expr.Expr:
-        if self.match(lox.scanner.TokenType.FALSE):
+        if self.match(TT.FALSE):
             return lox.expr.Literal(False)
-        if self.match(lox.scanner.TokenType.TRUE):
+        if self.match(TT.TRUE):
             return lox.expr.Literal(True)
-        if self.match(lox.scanner.TokenType.NIL):
+        if self.match(TT.NIL):
             return lox.expr.Literal(None)
-        if tok := self.match(
-            lox.scanner.TokenType.NUMBER, lox.scanner.TokenType.STRING
-        ):
+        if tok := self.match(TT.NUMBER, TT.STRING):
             return lox.expr.Literal(tok.literal)
-        if self.match(lox.scanner.TokenType.LEFT_PAREN):
+        if self.match(TT.LEFT_PAREN):
             expr = self.expression()
-            self.consume(
-                lox.scanner.TokenType.RIGHT_PAREN, "Expect ')' after expression."
-            )
+            self.consume(TT.RIGHT_PAREN, "Expect ')' after expression.")
             return lox.expr.Grouping(expr)
-        if tok := self.match(lox.scanner.TokenType.IDENTIFIER):
+        if tok := self.match(TT.IDENTIFIER):
             return lox.expr.Variable(tok)
         raise self.error(self.peek(), "Expect expression.")
 
     def parse_binary_operation(
-        self, next_expr: Callable[[], lox.expr.Expr], *types: lox.scanner.TokenType
+        self, next_expr: Callable[[], lox.expr.Expr], *types: TT
     ) -> lox.expr.Expr:
         expr = next_expr()
         while tok := self.match(*types):
@@ -290,22 +254,22 @@ class Parser:
 
     def synchronize(self):
         while not self.is_at_end():
-            if self.tokens[self.current - 1].typ == lox.scanner.TokenType.SEMICOLON:
+            if self.tokens[self.current - 1].typ == TT.SEMICOLON:
                 return
             if self.peek().typ in (
-                lox.scanner.TokenType.CLASS,
-                lox.scanner.TokenType.FUN,
-                lox.scanner.TokenType.VAR,
-                lox.scanner.TokenType.FOR,
-                lox.scanner.TokenType.IF,
-                lox.scanner.TokenType.WHILE,
-                lox.scanner.TokenType.PRINT,
-                lox.scanner.TokenType.RETURN,
+                TT.CLASS,
+                TT.FUN,
+                TT.VAR,
+                TT.FOR,
+                TT.IF,
+                TT.WHILE,
+                TT.PRINT,
+                TT.RETURN,
             ):
                 return
             self.current += 1
 
-    def consume(self, typ: lox.scanner.TokenType, message: str) -> lox.scanner.Token:
+    def consume(self, typ: TT, message: str) -> lox.scanner.Token:
         if tok := self.match(typ):
             return tok
         raise self.error(self.peek(), message)
@@ -315,7 +279,7 @@ class Parser:
         return LoxParseError()
 
     def is_at_end(self) -> bool:
-        return self.peek().typ == lox.scanner.TokenType.EOF
+        return self.peek().typ == TT.EOF
 
     def peek(self) -> lox.scanner.Token:
         return self.tokens[self.current]
@@ -325,7 +289,7 @@ class Parser:
             return None
         return self.tokens[self.current + 1]
 
-    def match(self, *types: lox.scanner.TokenType) -> Optional[lox.scanner.Token]:
+    def match(self, *types: TT) -> Optional[lox.scanner.Token]:
         """
         Tries to match the next token to the given types. Consumes and returns
         the token on match, returns None if there is no match.
