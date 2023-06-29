@@ -81,8 +81,6 @@ class Environment:
     def get_at(self, name: lox.scanner.Token, steps: int) -> lox.value.LoxValue:
         env = self.ancestor(steps)
         if env is None or name.lexeme not in env.env:
-            print(f"get_at({name.lexeme}, {steps})")
-            print(f"Self: {self} got: {env}")
             raise LoxRuntimeError(name, "Failed variable resolution.")
         return env.env[name.lexeme]
 
@@ -116,11 +114,18 @@ class UserFunction(lox.value.LoxCallable):
     arity: int
     declaration: lox.stmt.Function
     closure: Environment
+    is_initializer: bool
 
-    def __init__(self, declaration: lox.stmt.Function, closure: Environment) -> None:
+    def __init__(
+        self,
+        declaration: lox.stmt.Function,
+        closure: Environment,
+        is_initializer: bool = False,
+    ) -> None:
         self.arity = len(declaration.params)
         self.declaration = declaration
         self.closure = closure
+        self.is_initializer = is_initializer
 
     def call(
         self, intr: "Interpreter", args: list[lox.value.LoxValue]
@@ -129,9 +134,19 @@ class UserFunction(lox.value.LoxCallable):
         for param, arg in zip(self.declaration.params, args):
             env.define(param, arg)
         try:
-            return intr.execute_block(self.declaration.body, env)
+            intr.execute_block(self.declaration.body, env)
         except ReturnException as ret:
+            if self.is_initializer:
+                return self.closure.env["this"]
             return ret.val
+        if self.is_initializer:
+            return self.closure.env["this"]
+        return None
+
+    def bind(self, instance: lox.value.LoxInstance) -> "UserFunction":
+        env = Environment(self.closure)
+        env.env["this"] = instance
+        return UserFunction(self.declaration, env, self.is_initializer)
 
     def __str__(self) -> str:
         return f"<fn {self.declaration.name.lexeme}>"
@@ -218,11 +233,16 @@ class Interpreter(lox.expr.ExprVisitor[lox.value.LoxValue], lox.stmt.StmtVisitor
 
     def visit_class(self, stmt: lox.stmt.Class) -> None:
         self.env.define(stmt.name, None)
-        klass: lox.value.LoxClass = lox.value.LoxClass(stmt.name.lexeme)
+        methods: dict[str, UserFunction] = {}
+        for method in stmt.methods:
+            methods[method.name.lexeme] = UserFunction(
+                method, self.env, method.name.lexeme == "init"
+            )
+        klass = lox.value.LoxClass(stmt.name.lexeme, methods)
         self.env.set(stmt.name, klass)
 
     def visit_return(self, stmt: lox.stmt.Return) -> None:
-        raise ReturnException(stmt.value.accept(self))
+        raise ReturnException(stmt.value.accept(self) if stmt.value else None)
 
     def evaluate_expr(self, expr: lox.expr.Expr) -> lox.value.LoxValue:
         return expr.accept(self)
@@ -295,11 +315,7 @@ class Interpreter(lox.expr.ExprVisitor[lox.value.LoxValue], lox.stmt.StmtVisitor
         raise LoxTypeError(expr.operator, "Unexpected unary operation.")
 
     def visit_variable(self, expr: lox.expr.Variable) -> lox.value.LoxValue:
-        steps = self.locals.get(expr, None)
-        if steps is None:
-            return self.globals.get(expr.name)
-        else:
-            return self.env.get_at(expr.name, steps)
+        return self.lookup_variable(expr.name, expr)
 
     def visit_assign(self, expr: lox.expr.Assign) -> lox.value.LoxValue:
         val = expr.value.accept(self)
@@ -309,6 +325,15 @@ class Interpreter(lox.expr.ExprVisitor[lox.value.LoxValue], lox.stmt.StmtVisitor
         else:
             self.env.set_at(expr.name, val, steps)
         return val
+
+    def lookup_variable(
+        self, name: lox.scanner.Token, expr: lox.expr.Expr
+    ) -> lox.value.LoxValue:
+        steps = self.locals.get(expr, None)
+        if steps is None:
+            return self.globals.get(name)
+        else:
+            return self.env.get_at(name, steps)
 
     def visit_logical(self, expr: lox.expr.Logical) -> lox.value.LoxValue:
         val = lox.value.LoxObject(expr.left.accept(self))
@@ -333,6 +358,23 @@ class Interpreter(lox.expr.ExprVisitor[lox.value.LoxValue], lox.stmt.StmtVisitor
                 expr.paren, f"Expected {func.arity} arguments, got {len(arguments)}."
             )
         return func.call(self, arguments)
+
+    def visit_get(self, expr: lox.expr.Get) -> lox.value.LoxValue:
+        obj = expr.object.accept(self)
+        if not isinstance(obj, lox.value.LoxInstance):
+            raise LoxRuntimeError(expr.name, "Only instances have properties.")
+        return obj.get(expr.name)
+
+    def visit_set(self, expr: lox.expr.Set) -> lox.value.LoxValue:
+        obj = expr.object.accept(self)
+        if not isinstance(obj, lox.value.LoxInstance):
+            raise LoxRuntimeError(expr.name, "Only instances have properties.")
+        value = expr.value.accept(self)
+        obj.set(expr.name, value)
+        return value
+
+    def visit_this(self, expr: lox.expr.This) -> lox.value.LoxValue:
+        return self.lookup_variable(expr.keyword, expr)
 
     def check_types(
         self,

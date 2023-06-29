@@ -1,12 +1,32 @@
 class Breakfast {
-  cook() {
-    print "Eggs a-fryin'!";
+  init(who) {
+    this.who = who;
+    return;
+    print "This is " + this.who + "'s breakfast";
   }
 
-  serve(who) {
-    print "Enjoy your breakfast, " + who + ".";
+  cook() {
+    print "Eggs a-fryin'!";
+    return;
+  }
+
+  serve() {
+    print "Enjoy your breakfast, " + this.who + ".";
   }
 }
 
-var brek = Breakfast();
+var brek = Breakfast("me");
 print brek;
+
+fun hello() {
+  print "hello";
+  return 1;
+}
+
+brek.hello = hello;
+print brek.hello();
+
+var serve = brek.serve;
+
+brek.cook();
+serve();

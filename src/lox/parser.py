@@ -79,7 +79,9 @@ class Parser:
         self.consume(TT.LEFT_BRACE, "Expect brace before class body.")
         methods: list[lox.stmt.Function] = []
         while not self.check(TT.RIGHT_BRACE) and not self.is_at_end():
-            methods.append(self.fun_declaration("method"))
+            method = self.fun_declaration("method")
+            # if method.name.lexeme == "init":
+            methods.append(method)
         self.consume(TT.RIGHT_BRACE, "Expect brace after class body.")
         return lox.stmt.Class(name, methods)
 
@@ -158,7 +160,7 @@ class Parser:
         return lox.stmt.Break(token)
 
     def return_(self, token: lox.scanner.Token) -> lox.stmt.Stmt:
-        value: lox.expr.Expr = lox.expr.Literal(None)
+        value: lox.expr.Expr | None = None
         if not self.match(TT.SEMICOLON):
             value = self.expression()
             self.consume(TT.SEMICOLON, "Expect semicolon after Return.")
@@ -178,6 +180,8 @@ class Parser:
             value = self.assignment()
             if isinstance(expr, lox.expr.Variable):
                 return lox.expr.Assign(expr.name, value)
+            if isinstance(expr, lox.expr.Get):
+                return lox.expr.Set(expr.object, expr.name, value)
             self.error(equals, "Invalid assignment target.")
         return expr
 
@@ -222,9 +226,15 @@ class Parser:
 
     def call(self) -> lox.expr.Expr:
         expr = self.primary()
-        while (paren := self.match(TT.LEFT_PAREN)) is not None:
-            arguments = self.arguments()
-            expr = lox.expr.Call(expr, paren, arguments)
+        while not self.is_at_end():
+            if paren := self.match(TT.LEFT_PAREN):
+                arguments = self.arguments()
+                expr = lox.expr.Call(expr, paren, arguments)
+            elif self.match(TT.DOT):
+                name = self.consume(TT.IDENTIFIER, "Expect identifier after dot.")
+                expr = lox.expr.Get(expr, name)
+            else:
+                break
         return expr
 
     def arguments(self) -> list[lox.expr.Expr]:
@@ -253,6 +263,8 @@ class Parser:
             return lox.expr.Grouping(expr)
         if tok := self.match(TT.IDENTIFIER):
             return lox.expr.Variable(tok)
+        if tok := self.match(TT.THIS):
+            return lox.expr.This(tok)
         raise self.error(self.peek(), "Expect expression.")
 
     def parse_binary_operation(

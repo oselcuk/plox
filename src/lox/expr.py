@@ -33,6 +33,15 @@ class ExprVisitor(Protocol[T_co]):
     def visit_call(self, expr: "Call") -> T_co:
         ...
 
+    def visit_get(self, expr: "Get") -> T_co:
+        ...
+
+    def visit_set(self, expr: "Set") -> T_co:
+        ...
+
+    def visit_this(self, expr: "This") -> T_co:
+        ...
+
 
 @dataclass(frozen=True, eq=False)
 class Expr:
@@ -89,3 +98,21 @@ class Call(Expr):
     callee: Expr
     paren: scanner.Token
     arguments: list[Expr]
+
+
+@dataclass(frozen=True, eq=False)
+class Get(Expr):
+    object: Expr
+    name: scanner.Token
+
+
+@dataclass(frozen=True, eq=False)
+class Set(Expr):
+    object: Expr
+    name: scanner.Token
+    value: Expr
+
+
+@dataclass(frozen=True, eq=False)
+class This(Expr):
+    keyword: scanner.Token

@@ -98,7 +98,7 @@ class Function(Stmt):
 @dataclass(frozen=True, eq=False)
 class Return(Stmt):
     keyword: scanner.Token
-    value: expr.Expr
+    value: expr.Expr | None
 
 
 @dataclass(frozen=True, eq=False)

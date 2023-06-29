@@ -5,9 +5,12 @@ from lox.expr import (
     Call,
     Expr,
     ExprVisitor,
+    Get,
     Grouping,
     Literal,
     Logical,
+    Set,
+    This,
     Unary,
     Variable,
 )
@@ -32,6 +35,13 @@ from lox.stmt import (
 class FunctionType(Enum):
     NONE = auto()
     FUNCTION = auto()
+    INITIALIZER = auto()
+    METHOD = auto()
+
+
+class ClassType(Enum):
+    NONE = auto()
+    CLASS = auto()
 
 
 class VariableState(Enum):
@@ -45,6 +55,7 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     interpreter: Interpreter
     scopes: list[dict[str, VariableState]]
     current_function: FunctionType = FunctionType.NONE
+    current_class: ClassType = ClassType.NONE
     loop_depth: int = 0
 
     def __init__(self, interpreter: Interpreter):
@@ -98,8 +109,19 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self.resolve_function(stmt, FunctionType.FUNCTION)
 
     def visit_class(self, stmt: Class) -> None:
+        enclosing_class = self.current_class
+        self.current_class = ClassType.CLASS
         self.declare(stmt.name)
         self.define(stmt.name)
+        self.begin_scope()
+        self.scopes[-1]["this"] = VariableState.USED
+        for method in stmt.methods:
+            declaration = FunctionType.METHOD
+            if method.name.lexeme == "init":
+                declaration = FunctionType.INITIALIZER
+            self.resolve_function(method, declaration)
+        self.end_scope()
+        self.current_class = enclosing_class
 
     def resolve_function(self, func: Function, typ: FunctionType):
         restore = self.current_function
@@ -153,7 +175,10 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def visit_return(self, stmt: Return) -> None:
         if self.current_function == FunctionType.NONE:
             self.error(stmt.keyword, "Can't return from top-level code.")
-        self.resolve(stmt.value)
+        if stmt.value is not None:
+            if self.current_function == FunctionType.INITIALIZER and stmt.value:
+                self.error(stmt.keyword, "Can't return from init method.")
+            self.resolve(stmt.value)
 
     def visit_while(self, stmt: While) -> None:
         self.resolve(stmt.conditional)
@@ -169,6 +194,18 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self.resolve(expr.callee)
         for arg in expr.arguments:
             self.resolve(arg)
+
+    def visit_get(self, expr: Get) -> None:
+        self.resolve(expr.object)
+
+    def visit_set(self, expr: Set) -> None:
+        self.resolve(expr.value)
+        self.resolve(expr.object)
+
+    def visit_this(self, expr: This) -> None:
+        if self.current_class == ClassType.NONE:
+            self.error(expr.keyword, "Can't use 'this' outside of a class.")
+        self.resolve_local(expr, expr.keyword, True)
 
     def visit_grouping(self, expr: Grouping) -> None:
         self.resolve(expr.expr)
