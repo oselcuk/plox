@@ -233,12 +233,23 @@ class Interpreter(lox.expr.ExprVisitor[lox.value.LoxValue], lox.stmt.StmtVisitor
 
     def visit_class(self, stmt: lox.stmt.Class) -> None:
         self.env.define(stmt.name, None)
+        closure = self.env
+        superclass: lox.value.LoxClass | None = None
+        if stmt.superclass:
+            val = stmt.superclass.accept(self)
+            if not isinstance(val, lox.value.LoxClass):
+                raise LoxRuntimeError(
+                    stmt.superclass.name, "Superclass must refer to a class."
+                )
+            superclass = val
+            closure = Environment(closure)
+            closure.env["super"] = superclass
         methods: dict[str, UserFunction] = {}
         for method in stmt.methods:
             methods[method.name.lexeme] = UserFunction(
-                method, self.env, method.name.lexeme == "init"
+                method, closure, method.name.lexeme == "init"
             )
-        klass = lox.value.LoxClass(stmt.name.lexeme, methods)
+        klass = lox.value.LoxClass(stmt.name.lexeme, superclass, methods)
         self.env.set(stmt.name, klass)
 
     def visit_return(self, stmt: lox.stmt.Return) -> None:
@@ -372,6 +383,23 @@ class Interpreter(lox.expr.ExprVisitor[lox.value.LoxValue], lox.stmt.StmtVisitor
         value = expr.value.accept(self)
         obj.set(expr.name, value)
         return value
+
+    def visit_super(self, expr: lox.expr.Super) -> lox.value.LoxValue:
+        steps = self.locals[expr]
+        superclass = self.env.get_at(expr.keyword, steps)
+        if not isinstance(superclass, lox.value.LoxClass):
+            raise LoxRuntimeError(expr.keyword, "Superclass should be a class.")
+        this_token = lox.scanner.Token(lox.scanner.TokenType.THIS, "this", None, 0)
+        this = self.env.get_at(this_token, steps - 1)
+        if not isinstance(this, lox.value.LoxInstance):
+            raise LoxRuntimeError(expr.keyword, "Didn't find the expected 'this'.")
+        method = superclass.get_method(expr.method.lexeme)
+        if not method:
+            raise LoxRuntimeError(
+                expr.method,
+                f"Method {expr.method.lexeme} not found on {superclass.name}.",
+            )
+        return method.bind(this)
 
     def visit_this(self, expr: lox.expr.This) -> lox.value.LoxValue:
         return self.lookup_variable(expr.keyword, expr)

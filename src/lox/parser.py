@@ -76,6 +76,11 @@ class Parser:
 
     def class_declaration(self) -> lox.stmt.Stmt:
         name = self.consume(TT.IDENTIFIER, "Expect class name.")
+        superclass: lox.expr.Variable | None = None
+        if self.match(TT.LESS):
+            superclass = lox.expr.Variable(
+                self.consume(TT.IDENTIFIER, "Expect class name after '<'.")
+            )
         self.consume(TT.LEFT_BRACE, "Expect brace before class body.")
         methods: list[lox.stmt.Function] = []
         while not self.check(TT.RIGHT_BRACE) and not self.is_at_end():
@@ -83,7 +88,7 @@ class Parser:
             # if method.name.lexeme == "init":
             methods.append(method)
         self.consume(TT.RIGHT_BRACE, "Expect brace after class body.")
-        return lox.stmt.Class(name, methods)
+        return lox.stmt.Class(name, superclass, methods)
 
     def statement(self) -> lox.stmt.Stmt:
         if self.match(TT.PRINT):
@@ -265,6 +270,10 @@ class Parser:
             return lox.expr.Variable(tok)
         if tok := self.match(TT.THIS):
             return lox.expr.This(tok)
+        if tok := self.match(TT.SUPER):
+            self.consume(TT.DOT, "Expect '.' after 'super'.")
+            method = self.consume(TT.IDENTIFIER, "Expect superclass method name.")
+            return lox.expr.Super(tok, method)
         raise self.error(self.peek(), "Expect expression.")
 
     def parse_binary_operation(

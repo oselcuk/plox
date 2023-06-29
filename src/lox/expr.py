@@ -42,6 +42,9 @@ class ExprVisitor(Protocol[T_co]):
     def visit_this(self, expr: "This") -> T_co:
         ...
 
+    def visit_super(self, expr: "Super") -> T_co:
+        ...
+
 
 @dataclass(frozen=True, eq=False)
 class Expr:
@@ -116,3 +119,9 @@ class Set(Expr):
 @dataclass(frozen=True, eq=False)
 class This(Expr):
     keyword: scanner.Token
+
+
+@dataclass(frozen=True, eq=False)
+class Super(Expr):
+    keyword: scanner.Token
+    method: scanner.Token

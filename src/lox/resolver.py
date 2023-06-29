@@ -10,6 +10,7 @@ from lox.expr import (
     Literal,
     Logical,
     Set,
+    Super,
     This,
     Unary,
     Variable,
@@ -42,6 +43,7 @@ class FunctionType(Enum):
 class ClassType(Enum):
     NONE = auto()
     CLASS = auto()
+    SUBCLASS = auto()
 
 
 class VariableState(Enum):
@@ -113,6 +115,13 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self.current_class = ClassType.CLASS
         self.declare(stmt.name)
         self.define(stmt.name)
+        if stmt.superclass:
+            self.current_class = ClassType.SUBCLASS
+            if stmt.superclass.name.lexeme == stmt.name.lexeme:
+                self.error(stmt.superclass.name, "A class can't inherit from itself.")
+            self.resolve(stmt.superclass)
+            self.begin_scope()
+            self.scopes[-1]["super"] = VariableState.USED
         self.begin_scope()
         self.scopes[-1]["this"] = VariableState.USED
         for method in stmt.methods:
@@ -121,6 +130,8 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
                 declaration = FunctionType.INITIALIZER
             self.resolve_function(method, declaration)
         self.end_scope()
+        if stmt.superclass:
+            self.end_scope()
         self.current_class = enclosing_class
 
     def resolve_function(self, func: Function, typ: FunctionType):
@@ -201,6 +212,13 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
     def visit_set(self, expr: Set) -> None:
         self.resolve(expr.value)
         self.resolve(expr.object)
+
+    def visit_super(self, expr: Super) -> None:
+        if self.current_class == ClassType.NONE:
+            self.error(expr.keyword, "Can't use 'super' outside of a class.")
+        elif self.current_class == ClassType.CLASS:
+            self.error(expr.keyword, "Can't use 'super' in a class with no superclass.")
+        self.resolve_local(expr, expr.keyword, True)
 
     def visit_this(self, expr: This) -> None:
         if self.current_class == ClassType.NONE:

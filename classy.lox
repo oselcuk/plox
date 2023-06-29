@@ -1,7 +1,6 @@
 class Breakfast {
   init(who) {
     this.who = who;
-    return;
     print "This is " + this.who + "'s breakfast";
   }
 
@@ -12,6 +11,13 @@ class Breakfast {
 
   serve() {
     print "Enjoy your breakfast, " + this.who + ".";
+  }
+}
+
+class EggsBenny < Breakfast {
+  cook() {
+    super.cook();
+    print "and muffin";
   }
 }
 
@@ -30,3 +36,6 @@ var serve = brek.serve;
 
 brek.cook();
 serve();
+
+var benny = EggsBenny("me");
+benny.cook();

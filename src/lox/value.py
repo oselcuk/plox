@@ -40,12 +40,17 @@ class LoxInstance:
 class LoxClass(LoxCallable):
     arity: int = 0
     name: str
+    superclass: "LoxClass | None"
     methods: dict[str, "interpreter.UserFunction"]
 
     def __init__(
-        self, name: str, methods: "dict[str, interpreter.UserFunction]"
+        self,
+        name: str,
+        superclass: "LoxClass | None",
+        methods: "dict[str, interpreter.UserFunction]",
     ) -> None:
         self.name = name
+        self.superclass = superclass
         self.methods = methods
         if initializer := self.get_method("init"):
             self.arity = initializer.arity
@@ -59,7 +64,11 @@ class LoxClass(LoxCallable):
         return instance
 
     def get_method(self, name: str) -> "interpreter.UserFunction | None":
-        return self.methods.get(name)
+        if method := self.methods.get(name):
+            return method
+        if self.superclass:
+            return self.superclass.get_method(name)
+        return None
 
     def __str__(self) -> str:
         return f"<lox class {self.name}>"

@@ -104,4 +104,5 @@ class Return(Stmt):
 @dataclass(frozen=True, eq=False)
 class Class(Stmt):
     name: scanner.Token
+    superclass: expr.Variable | None
     methods: list[Function]
