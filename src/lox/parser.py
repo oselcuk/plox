@@ -14,8 +14,6 @@ class Parser:
     tokens: list[lox.scanner.Token]
     current: int = 0
     lox_instance: "lox.lox.Lox"
-    # To know when to allow flow control words like "break".
-    loop_depth: int = 0
 
     def __init__(
         self, lox_instance: "lox.lox.Lox", tokens: list[lox.scanner.Token]
@@ -94,8 +92,8 @@ class Parser:
             return self.while_()
         if self.match(lox.scanner.TokenType.FOR):
             return self.for_()
-        if self.match(lox.scanner.TokenType.BREAK):
-            return self.break_()
+        if token := self.match(lox.scanner.TokenType.BREAK):
+            return self.break_(token)
         if token := self.match(lox.scanner.TokenType.RETURN):
             return self.return_(token)
         return self.expression_statement()
@@ -138,11 +136,7 @@ class Parser:
 
     def while_(self) -> lox.stmt.Stmt:
         cond = self.parse_condition()
-        try:
-            self.loop_depth += 1
-            body = self.statement()
-        finally:
-            self.loop_depth -= 1
+        body = self.statement()
         return lox.stmt.While(cond, body)
 
     def for_(self) -> lox.stmt.Stmt:
@@ -166,22 +160,15 @@ class Parser:
         self.consume(
             lox.scanner.TokenType.RIGHT_PAREN, "Expect parenthses around for header."
         )
-        try:
-            self.loop_depth += 1
-            body = self.statement()
-        finally:
-            self.loop_depth -= 1
+        body = self.statement()
         if advancement is not None:
             body = lox.stmt.Block([body, lox.stmt.Expression(advancement)])
         statements.append(lox.stmt.While(cond, body))
         return lox.stmt.Block(statements)
 
-    def break_(self) -> lox.stmt.Stmt:
-        if self.loop_depth == 0:
-            self.error(self.peek(), "Break is not allowed outside of a loop.")
-            return self.statement()
+    def break_(self, token: lox.scanner.Token) -> lox.stmt.Stmt:
         self.consume(lox.scanner.TokenType.SEMICOLON, "Expect semicolon after break.")
-        return lox.stmt.Break()
+        return lox.stmt.Break(token)
 
     def return_(self, token: lox.scanner.Token) -> lox.stmt.Stmt:
         value: lox.expr.Expr = lox.expr.Literal(None)

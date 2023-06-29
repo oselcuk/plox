@@ -1,3 +1,4 @@
+from enum import auto, Enum
 from lox.expr import (
     Assign,
     Binary,
@@ -27,9 +28,16 @@ from lox.stmt import (
 )
 
 
+class FunctionType(Enum):
+    NONE = auto()
+    FUNCTION = auto()
+
+
 class Resolver(ExprVisitor[None], StmtVisitor[None]):
     interpreter: Interpreter
     scopes: list[dict[str, bool]]
+    current_function: FunctionType = FunctionType.NONE
+    loop_depth: int = 0
 
     def __init__(self, interpreter: Interpreter):
         self.interpreter = interpreter
@@ -69,18 +77,26 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self.declare(stmt.name)
         self.define(stmt.name)
 
-        self.resolve_function(stmt)
+        loop_depth = self.loop_depth
+        self.loop_depth = 0
+        self.resolve_function(stmt, FunctionType.FUNCTION)
+        self.loop_depth = loop_depth
 
-    def resolve_function(self, func: Function):
+    def resolve_function(self, func: Function, typ: FunctionType):
+        restore = self.current_function
+        self.current_function = typ
         self.begin_scope()
         for param in func.params:
             self.declare(param)
             self.define(param)
         self.resolve_statements(func.body)
         self.end_scope()
+        self.current_function = restore
 
     def declare(self, name: Token):
         if self.scopes:
+            if name.lexeme in self.scopes[-1]:
+                self.error(name, "Variable already declared in this scope.")
             self.scopes[-1][name.lexeme] = False
 
     def define(self, name: Token):
@@ -109,11 +125,15 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self.resolve(stmt.expr)
 
     def visit_return(self, stmt: Return) -> None:
+        if self.current_function == FunctionType.NONE:
+            self.error(stmt.keyword, "Can't return from top-level code.")
         self.resolve(stmt.value)
 
     def visit_while(self, stmt: While) -> None:
         self.resolve(stmt.conditional)
+        self.loop_depth += 1
         self.resolve(stmt.body)
+        self.loop_depth -= 1
 
     def visit_binary(self, expr: Binary) -> None:
         self.resolve(expr.left)
@@ -131,7 +151,8 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         pass
 
     def visit_break(self, stmt: Break) -> None:
-        pass
+        if self.loop_depth == 0:
+            self.error(stmt.keyword, "Can't break outside of loop.")
 
     def visit_logical(self, expr: Logical) -> None:
         self.resolve(expr.left)

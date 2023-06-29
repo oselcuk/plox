@@ -1,6 +1,5 @@
-123
-print 1/0.0000;
-print 0/0;
-1 + "";
-print "bad"
-;;;
+while (true) {
+    fun test() {
+        break;
+    }
+}

@@ -56,9 +56,9 @@ class Lox:
             return
 
         resolver.Resolver(self.intr).resolve_statements(statements)
-        self.debug(f"Resolver:")
-        for k, v in self.intr.locals.items():
-            self.debug(f"{k}: {v}")
+        # self.debug("Resolver:")
+        # for k, v in self.intr.locals.items():
+        #     self.debug(f"{k}: {v}")
         if self.had_error:
             return
         self.intr.interpret(statements)

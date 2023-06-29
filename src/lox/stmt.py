@@ -82,7 +82,7 @@ class While(Stmt):
 
 @dataclass(frozen=True, eq=False)
 class Break(Stmt):
-    pass
+    keyword: scanner.Token
 
 
 @dataclass(frozen=True, eq=False)
