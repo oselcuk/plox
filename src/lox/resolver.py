@@ -16,6 +16,7 @@ from lox.scanner import Token, TokenType
 from lox.stmt import (
     Block,
     Break,
+    Class,
     Expression,
     Function,
     If,
@@ -95,6 +96,10 @@ class Resolver(ExprVisitor[None], StmtVisitor[None]):
         self.define(stmt.name)
 
         self.resolve_function(stmt, FunctionType.FUNCTION)
+
+    def visit_class(self, stmt: Class) -> None:
+        self.declare(stmt.name)
+        self.define(stmt.name)
 
     def resolve_function(self, func: Function, typ: FunctionType):
         restore = self.current_function

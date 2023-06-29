@@ -14,7 +14,31 @@ class LoxCallable(Protocol):
         pass
 
 
-LoxValue = None | bool | float | str | LoxCallable
+@dataclass(frozen=True, eq=False)
+class LoxInstance:
+    klass: "LoxClass"
+
+    def __str__(self) -> str:
+        return f"<lox instance {self.klass.name}>"
+
+
+class LoxClass(LoxCallable):
+    arity: int = 0
+    name: str
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def call(
+        self, intr: "interpreter.Interpreter", args: "list[LoxValue]"
+    ) -> "LoxValue":
+        return LoxInstance(self)
+
+    def __str__(self) -> str:
+        return f"<lox class {self.name}>"
+
+
+LoxValue = None | bool | float | str | LoxCallable | LoxClass | LoxInstance
 
 
 @dataclass(frozen=True, eq=False)

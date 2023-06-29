@@ -40,7 +40,7 @@ class Parser:
                 return self.var_declaration()
             if self.match(TT.FUN):
                 return self.fun_declaration("function")
-            if self.match(lox.scanner.TokenType.CLASS):
+            if self.match(TT.CLASS):
                 return self.class_declaration()
             return self.statement()
         except LoxParseError:
@@ -55,7 +55,7 @@ class Parser:
         self.consume(TT.SEMICOLON, "Expect semicolon after var declaration.")
         return lox.stmt.Var(name, initializer)
 
-    def fun_declaration(self, kind: str) -> lox.stmt.Stmt:
+    def fun_declaration(self, kind: str) -> lox.stmt.Function:
         name = self.consume(TT.IDENTIFIER, f"Expect {kind} name.")
         self.consume(
             TT.LEFT_PAREN,
@@ -75,10 +75,13 @@ class Parser:
         return lox.stmt.Function(name, params, self.block_statement())
 
     def class_declaration(self) -> lox.stmt.Stmt:
-        name = self.consume(lox.scanner.TokenType.IDENTIFIER, "Expect class name.")
-        self.consume(
-            lox.scanner.TokenType.LEFT_BRACE,
-        )
+        name = self.consume(TT.IDENTIFIER, "Expect class name.")
+        self.consume(TT.LEFT_BRACE, "Expect brace before class body.")
+        methods: list[lox.stmt.Function] = []
+        while not self.check(TT.RIGHT_BRACE) and not self.is_at_end():
+            methods.append(self.fun_declaration("method"))
+        self.consume(TT.RIGHT_BRACE, "Expect brace after class body.")
+        return lox.stmt.Class(name, methods)
 
     def statement(self) -> lox.stmt.Stmt:
         if self.match(TT.PRINT):
@@ -297,12 +300,21 @@ class Parser:
             return None
         return self.tokens[self.current + 1]
 
-    def match(self, *types: TT) -> Optional[lox.scanner.Token]:
+    def check(self, *types: TT) -> Optional[lox.scanner.Token]:
         """
         Tries to match the next token to the given types. Consumes and returns
         the token on match, returns None if there is no match.
         """
         if (tok := self.peek()).typ in types:
+            return tok
+        return None
+
+    def match(self, *types: TT) -> Optional[lox.scanner.Token]:
+        """
+        Tries to match the next token to the given types. Consumes and returns
+        the token on match, returns None if there is no match.
+        """
+        if tok := self.check(*types):
             self.current += 1
             return tok
         return None

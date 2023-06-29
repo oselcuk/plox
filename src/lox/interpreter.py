@@ -216,6 +216,11 @@ class Interpreter(lox.expr.ExprVisitor[lox.value.LoxValue], lox.stmt.StmtVisitor
     def visit_function(self, stmt: lox.stmt.Function) -> None:
         self.env.define(stmt.name, UserFunction(stmt, self.env))
 
+    def visit_class(self, stmt: lox.stmt.Class) -> None:
+        self.env.define(stmt.name, None)
+        klass: lox.value.LoxClass = lox.value.LoxClass(stmt.name.lexeme)
+        self.env.set(stmt.name, klass)
+
     def visit_return(self, stmt: lox.stmt.Return) -> None:
         raise ReturnException(stmt.value.accept(self))
 

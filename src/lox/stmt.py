@@ -36,6 +36,9 @@ class StmtVisitor(Protocol[T_co]):
     def visit_return(self, stmt: "Return") -> T_co:
         ...
 
+    def visit_class(self, stmt: "Class") -> T_co:
+        ...
+
 
 @dataclass(frozen=True, eq=False)
 class Stmt:
